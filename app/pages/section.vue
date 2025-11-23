@@ -30,6 +30,9 @@ const items = [
     },
 ] satisfies TabsItem[]
 
+
+// PEOPLE TAB SCRIPT
+
 type Student = {
   avatar: string
   name: string
@@ -203,6 +206,10 @@ const teacher_columns: TableColumn<Teacher>[] = [
 ]
 
 const table = useTemplateRef('table')
+
+// END PEOPLE TAB SCRIPT
+
+
 </script>
 
 <template>
