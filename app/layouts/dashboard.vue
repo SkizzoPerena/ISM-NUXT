@@ -116,7 +116,7 @@ defineShortcuts({
     <UDashboardPanel>
       <template #header>
         <UDashboardNavbar #right #leading>
-
+          <UColorModeButton />
           <UInput class="mr-2" placeholder="Search..." />
 
           <UButton to="/" icon="i-lucide-house" color="neutral" variant="ghost" />
