@@ -213,7 +213,9 @@ const table = useTemplateRef('table')
 
         <UPageCard class="mt-6">
             <UTabs :items="items" variant="link" :ui="{ trigger: 'grow' }" class="gap-4 w-full">
-                <template #people="{ item }">
+                
+              <!-- PEOPLE TAB -->
+              <template #people="{ item }">
                     <UPageGrid>
                         <UContainer  class="lg:col-span-2">
                     <div class="text-lg font-bold m-0 p-0" style="">Students</div>
@@ -228,11 +230,9 @@ const table = useTemplateRef('table')
                
 
                 </template>
-
+                <!-- ASSESSMENTS TAB -->
                 <template #assessment="{ item }">
-                    <p class="text-muted mb-4">
-                        {{ item.description }}
-                    </p>
+                    
 
                 </template>
             </UTabs>

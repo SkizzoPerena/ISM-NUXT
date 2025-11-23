@@ -136,13 +136,15 @@ const columns: TableColumn<Student>[] = [
 ]
 
 const table = useTemplateRef('table')
-
+ 
 const columnFilters = ref([
   {
     id: 'name',
     value: ''
   }
 ])
+
+// FORM SCRIPT
 
 const state = reactive({
   email: undefined,
@@ -165,6 +167,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 }
 
 const SAAB = ref(['Male', 'Female'])
+
+// END FORM SCRIPT
 </script>
 
 <template>
