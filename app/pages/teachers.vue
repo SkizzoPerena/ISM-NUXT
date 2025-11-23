@@ -208,7 +208,7 @@ const SAAB = ref(['Male', 'Female'])
     </UModal>
 
     <UInput :model-value="table?.tableApi?.getColumn('name')?.getFilterValue() as string" class="max-w-sm"
-      placeholder="Search student..."
+      placeholder="Search teachers..."
       @update:model-value="table?.tableApi?.getColumn('name')?.setFilterValue($event)" />
 
 
