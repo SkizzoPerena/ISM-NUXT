@@ -3,3 +3,8 @@
 .landing-header {
     background-image: url('~/Stationery.jpg');
 }
+
+.header {
+    font-size: 2em;
+    font-weight: 500;
+}

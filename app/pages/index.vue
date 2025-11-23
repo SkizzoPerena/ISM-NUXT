@@ -6,10 +6,12 @@ const cards = ref([
   {
     title: 'Users',
     icon: 'i-lucide-users',
+    to: '/students'
   },
   {
     title: 'Sections',
     icon: 'i-lucide-book-user',
+    to: '/section'
   },
   {
     title: 'Materials',

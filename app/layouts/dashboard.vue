@@ -4,6 +4,7 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 const items: NavigationMenuItem[][] = [[{
   label: 'Home',
   icon: 'i-lucide-house',
+  to: '/',
 }, 
 {
   label: 'Sections',
@@ -15,7 +16,8 @@ const items: NavigationMenuItem[][] = [[{
   icon: 'i-lucide-book-user',
   defaultOpen: true,
   children: [{
-    label: 'Teachers'
+    label: 'Teachers',
+    to: '/teachers'
   }, {
     label: 'Students',
     to: '/students'
@@ -75,7 +77,8 @@ const userdropdown = ref([
   [
     {
       label: 'Sign out',
-      icon: 'i-lucide-log-out'
+      icon: 'i-lucide-log-out',
+      to: '/login',
     },
     
   ]

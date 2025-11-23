@@ -31,13 +31,13 @@ const schema = z.object({
 type Schema = z.output<typeof schema>
 
 function onSubmit(payload: FormSubmitEvent<Schema>) {
-  console.log('Submitted', payload)
+  window.location.href="/";
 }
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center gap-4 p-4">
-    <UPageCard class="w-full max-w-sm h-150" >
+  <UMain class="flex flex-col items-center justify-center">
+    <UPageCard class="w-full max-w-sm h-125" >
       <UAuthForm
         :schema="schema"
         :fields="fields"
@@ -56,6 +56,6 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
         </template>
       </UAuthForm>
     </UPageCard>
-  </div>
+  </UMain>
 </template>
 
