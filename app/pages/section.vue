@@ -214,12 +214,12 @@ const table = useTemplateRef('table')
 
 // START ASSESSMENT TAB SCRIPT
 
-type Payment = {
+type Assessments = {
   id: string
   date: string
 }
 
-const classassessmentdata = ref<Payment[]>([
+const classassessmentdata = ref<Assessments[]>([
   {
     id: 'Class-wide Assessment 1',
     date: 'Due Oct 10, 2026, 20:15',
@@ -242,7 +242,7 @@ const classassessmentdata = ref<Payment[]>([
   },
 ])
 
-const indiassessmentdata = ref<Payment[]>([
+const indiassessmentdata = ref<Assessments[]>([
   {
     id: 'Individual Assessment 1',
     date: 'Due Oct 10, 2026, 20:15',
@@ -265,7 +265,7 @@ const indiassessmentdata = ref<Payment[]>([
   },
 ])
 
-const assessmentcolumns: TableColumn<Payment>[] = [
+const assessmentcolumns: TableColumn<Assessments>[] = [
   {
     accessorKey: 'id',
     header: '',
@@ -293,10 +293,69 @@ const assessmentcolumns: TableColumn<Payment>[] = [
       })
   },
 ]
-
 const expanded = ref({ 1: true })
 
 // END ASSESSMENTS TAB SCRIPT
+
+// START JOURNALS TAB SCRIPT
+
+type Journals = {
+  id: string
+  date: string
+}
+
+const journaldata = ref<Journals[]>([
+  {
+    id: 'Class-wide Assessment 1',
+    date: 'Due Oct 10, 2026, 20:15',
+  },
+  {
+    id: 'Class-wide Assessment 2',
+    date: 'Due Oct 10, 2026, 20:15',
+  },
+  {
+    id: 'Class-wide Assessment 3',
+    date: 'Due Oct 10, 2026, 20:15',
+  },
+  {
+    id: 'Class-wide Assessment 4',
+    date: 'Due Oct 10, 2026, 20:15',
+  },
+  {
+    id: 'Class-wide Assessment 5',
+    date: 'Due Oct 10, 2026, 20:15',
+  },
+])
+
+const journalcolumns: TableColumn<Journals>[] = [
+  {
+    accessorKey: 'id',
+    header: '',
+  },
+  {
+    accessorKey: 'date',
+    header: 'Date',
+  },
+  {
+    id: 'expand',
+    cell: ({ row }) =>
+      h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        icon: 'i-lucide-chevron-down',
+        square: true,
+        'aria-label': 'Expand',
+        ui: {
+          leadingIcon: [
+            'transition-transform',
+            row.getIsExpanded() ? 'duration-200 rotate-180' : ''
+          ]
+        },
+        onClick: () => row.toggleExpanded()
+      })
+  },
+]
+// END JOURNALS TAB SCRIPT
 </script>
 
 <template>
@@ -320,10 +379,8 @@ const expanded = ref({ 1: true })
               <UTable :data="teachers" ref="table" :columns="teacher_columns" :ui="{ thead: 'hidden' }" />
             </UContainer>
           </UPageGrid>
-
-
-
         </template>
+
         <!-- ASSESSMENTS TAB -->
         <template #assessment="{ item }">
           <UContainer class="mt-5">
@@ -341,6 +398,20 @@ const expanded = ref({ 1: true })
             <div class="text-lg font-bold" style="">Individual Assessments</div>
 
             <UTable v-model:expanded="expanded" :data="indiassessmentdata" :columns="assessmentcolumns"
+              :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1">
+              <template #expanded="{ row }">
+                  <pre>Insert assessment description here</pre>
+              </template>
+            </UTable>
+          </UContainer>
+        </template>
+
+        <!-- JOURNALS TAB -->
+                 <template #journals="{ item }">
+          <UContainer class="mt-5">
+            <div class="text-lg font-bold" style="">Assigned Practice Journals</div>
+
+            <UTable v-model:expanded="expanded" :data="classassessmentdata" :columns="assessmentcolumns"
               :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1">
               <template #expanded="{ row }">
                 <pre>Insert assessment description here</pre>
