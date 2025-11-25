@@ -9,6 +9,7 @@ const items: NavigationMenuItem[][] = [[{
 {
   label: 'Sections',
   icon: 'i-lucide-users',
+  to: '/section',
 
 }, 
  {
@@ -31,7 +32,8 @@ const items: NavigationMenuItem[][] = [[{
   icon: 'i-lucide-book-open-text',
   defaultOpen: true,
   children: [{
-    label: 'Assessments'
+    label: 'Assessments',
+    to: '/assessments'
   }, {
     label: 'Journals'
   },]

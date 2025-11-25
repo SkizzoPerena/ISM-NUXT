@@ -258,49 +258,56 @@ const SAAB = ref(['Male', 'Female'])
 
 <template>
   <UContainer>
-    
-    <UModal :dismissible="false" title="Add New Student">
+    <UPageCard>
 
-      <UButton label="Add New Student" class="mr-5" />
+      <div class="flex">
+        <div class="text-lg font-bold">Students</div>
+        <div style="margin-left: auto">
+          <UInput :model-value="table?.tableApi?.getColumn('name')?.getFilterValue() as string" class="max-w-sm mr-5"
+            placeholder="Search students..."
+            @update:model-value="table?.tableApi?.getColumn('name')?.setFilterValue($event)" />
 
-      <template #body>
-        <UForm :validate="validate" :state="state" class="space-y-4" @submit="onSubmit">
-          <UFormField label="First Name" name="firstname" required  block>
-            <UInput placeholder="Juan"  class="w-full" />
-          </UFormField>
+          <UModal :dismissible="false" title="Add New Student">
 
-          <UFormField label="Last Name" name="lastname" required  block>
-            <UInput placeholder="Dela Cruz"  class="w-full" />
-          </UFormField>
-          
-          
-          <UFormField label="Email Address" name="email" required  block>
-            <UInput v-model="state.email" placeholder="user@email.com" class="w-full" />
-          </UFormField>
+            <UButton label="Add New Student" />
 
-          <UFormField label="Password" name="password" required>
-            <UInput v-model="state.password" type="password" placeholder="password" class="w-full"/>
-          </UFormField>
-          <UFormField label="Sex assigned at birth" name="SAAB" required>
-          <USelect placeholder="Select sex" :items="SAAB" class="w-full"/>
-          </UFormField>
+            <template #body>
+              <UForm :validate="validate" :state="state" class="space-y-4" @submit="onSubmit">
+                <UFormField label="First Name" name="firstname" required block>
+                  <UInput placeholder="Juan" class="w-full" />
+                </UFormField>
 
-          <UButton type="submit" block>
-            Add Student
-          </UButton>
-          </UForm>
-      </template>
-
-    </UModal>
-
-      <UInput :model-value="table?.tableApi?.getColumn('name')?.getFilterValue() as string"
-        class="max-w-sm" placeholder="Search students..."
-        @update:model-value="table?.tableApi?.getColumn('name')?.setFilterValue($event)" />
+                <UFormField label="Last Name" name="lastname" required block>
+                  <UInput placeholder="Dela Cruz" class="w-full" />
+                </UFormField>
 
 
-    <UTable sticky ref="table" v-model:column-filters="columnFilters" :data="data" :columns="columns"
-      class="flex-1 max-h-[70vh]" />
+                <UFormField label="Email Address" name="email" required block>
+                  <UInput v-model="state.email" placeholder="user@email.com" class="w-full" />
+                </UFormField>
 
+                <UFormField label="Password" name="password" required>
+                  <UInput v-model="state.password" type="password" placeholder="password" class="w-full" />
+                </UFormField>
+                <UFormField label="Sex assigned at birth" name="SAAB" required>
+                  <USelect placeholder="Select sex" :items="SAAB" class="w-full" />
+                </UFormField>
+
+                <UButton type="submit" block>
+                  Add Student
+                </UButton>
+              </UForm>
+            </template>
+
+          </UModal>
+
+        </div>
+      </div>
+
+
+      <UTable sticky ref="table" v-model:column-filters="columnFilters" :data="data" :columns="columns"
+        class="flex-1 max-h-[70vh]" />
+    </UPageCard>
   </UContainer>
 
 </template>
