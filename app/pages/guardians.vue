@@ -7,8 +7,8 @@ definePageMeta({
   layout: 'dashboard',
 })
 
-const { data, status } = await useAsyncData('teachers',
-  () => $fetch<Teacher[]>('https://noteworthy-z9k0.onrender.com/api/admin/teacher', {
+const { data, status } = await useAsyncData('guardians',
+  () => $fetch<Guardian[]>('https://noteworthy-z9k0.onrender.com/api/admin/guardian', {
     headers: {
       Authorization: `${useAuthToken().value}`
     },
@@ -22,15 +22,14 @@ const { data, status } = await useAsyncData('teachers',
     transform: (response: any) => {
       // The API might return data inside a property, e.g., { "data": [...] }
       // This line tries to find the array, assuming it might be nested.
-      const teacherData = response?.data || response?.teachers || response
-      const rows = Array.isArray(teacherData) ? teacherData : []
-      return rows.map((teacher: any) => ({
-        _id: teacher._id,
-        email: teacher.email,
-        name: teacher.firstName + ' ' + teacher.lastName,
-        gender: teacher.gender,
-        profileImageURL: teacher.profileImageURL,
-        assignedSections: teacher.assignedSections
+      const guardianData = response?.data || response?.guardians || response
+      const rows = Array.isArray(guardianData) ? guardianData : []
+      return rows.map((guardian: any) => ({
+        _id: guardian._id,
+        email: guardian.email,
+        name: guardian.firstName + ' ' + guardian.lastName,
+        gender: guardian.gender,
+        profileImageURL: guardian.profileImageURL,
       }))
     },
     lazy: false,
@@ -38,18 +37,17 @@ const { data, status } = await useAsyncData('teachers',
 )
 
 
-type Teacher = {
+type Guardian = {
   _id: string
   email: string
   name: string
   gender: string
   profileImageURL: string
-  assignedSections: string[]
 }
 
 const UAvatar = resolveComponent('UAvatar')
 
-const columns: TableColumn<Teacher>[] = [
+const columns: TableColumn<Guardian>[] = [
   {
     accessorKey: 'profileImageURL',
     header: '',
@@ -63,7 +61,7 @@ const columns: TableColumn<Teacher>[] = [
   },
   {
     accessorKey: '_id',
-    header: 'Teacher #',
+    header: 'Guardian #',
     cell: ({ row }) => `#${row.getValue('_id')}`
   },
   {
@@ -73,11 +71,6 @@ const columns: TableColumn<Teacher>[] = [
   {
     accessorKey: 'gender',
     header: 'Gender'
-  },
-  {
-    accessorKey: 'assignedSections',
-    header: 'Sections',
-    cell: ({ row }) => (row.getValue('assignedSections') as any[])?.length
   },
 ]
 
@@ -106,10 +99,10 @@ const columnFilters = ref([
     <UPageCard>
 
       <div class="flex items-center gap-4 mb-4">
-        <div class="text-lg font-bold">Teachers</div>
+        <div class="text-lg font-bold">guardians</div>
         <div style="margin-left: auto">
           <UInput :model-value="table?.tableApi?.getColumn('name')?.getFilterValue() as string" class="max-w-sm mr-5"
-            placeholder="Search students..."
+            placeholder="Search guardians..."
             @update:model-value="table?.tableApi?.getColumn('name')?.setFilterValue($event)" />
         </div>
       </div>

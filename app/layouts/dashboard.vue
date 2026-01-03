@@ -24,7 +24,8 @@ const items: NavigationMenuItem[][] = [[{
     label: 'Students',
     to: '/students'
   }, {
-    label: 'Guardians'
+    label: 'Guardians',
+    to: '/guardians'
   }]
 },
 

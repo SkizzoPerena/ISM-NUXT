@@ -85,12 +85,7 @@ const columns: TableColumn<Teacher>[] = [
 
 const table = useTemplateRef('table')
 
-const columnFilters = ref([
-  {
-    id: 'name',
-    value: ''
-  }
-])
+const globalFilter = ref('')
 
 // END TABLE FILTER SCRIPT
 
@@ -108,9 +103,9 @@ const columnFilters = ref([
       <div class="flex items-center gap-4 mb-4">
         <div class="text-lg font-bold">Teachers</div>
         <div style="margin-left: auto">
-          <UInput :model-value="table?.tableApi?.getColumn('name')?.getFilterValue() as string" class="max-w-sm mr-5"
-            placeholder="Search students..."
-            @update:model-value="table?.tableApi?.getColumn('name')?.setFilterValue($event)" />
+          <UInput v-model="globalFilter" class="max-w-sm mr-5"
+            placeholder="Search teachers..."
+            />
         </div>
       </div>
 
@@ -121,7 +116,7 @@ const columnFilters = ref([
         Wrapping the component in <ClientOnly> ensures it only renders in the browser, avoiding the error.
       -->
       <ClientOnly>
-        <UTable ref="table" v-model:column-filters="columnFilters" sticky :data="data || []" :columns="columns" :loading="status === 'pending'" class="flex-1 max-h-[70vh]" />
+        <UTable ref="table" v-model:global-filter="globalFilter" sticky :data="data || []" :columns="columns" :loading="status === 'pending'" class="flex-1 max-h-[70vh]" />
       </ClientOnly>
     </UPageCard>
   </UContainer>
