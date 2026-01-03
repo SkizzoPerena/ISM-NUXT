@@ -53,7 +53,7 @@ const columns: TableColumn<Guardian>[] = [
     header: '',
     // Using `resolveComponent` with a string name can be unreliable during SSR hydration.
     // It's much safer to reference the auto-imported component constructor `UAvatar` directly.
-    cell: ({ row }) => h(UAvatar, { src: row.original.profileImageURL })
+    cell: ({ row }) => h(UAvatar, { src: row.original.profileImageURL, alt: row.original.name })
   },
   {
     accessorKey: 'name',
