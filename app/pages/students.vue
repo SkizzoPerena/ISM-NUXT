@@ -7,218 +7,97 @@ definePageMeta({
   layout: 'dashboard',
 })
 
-const UBadge = resolveComponent('UBadge')
+const { data, status } = await useAsyncData('students',
+  () => $fetch<Student[]>('https://noteworthy-z9k0.onrender.com/api/admin/student', {
+    headers: {
+      Authorization: `${useAuthToken().value}`
+    },
+    onResponse({ response }) {
+      // This will log the raw response body.
+      // Check your browser's developer console to see the structure of the data.
+      console.log('API Response:', response._data)
+    }
+  }),
+  {
+    transform: (response: any) => {
+      // The API might return data inside a property, e.g., { "data": [...] }
+      // This line tries to find the array, assuming it might be nested.
+      const studentData = response?.data || response?.students || response
+      const rows = Array.isArray(studentData) ? studentData : []
+      return rows.map((student: any) => ({
+        _id: student._id,
+        assignedInstruments: student.assignedInstruments,
+        assignedSections: student.assignedSections,
+        email: student.email,
+        name: student.firstName + ' ' + student.lastName,
+        gender: student.gender,
+        profileImageURL: student.profileImageURL,      }))
+    },
+    lazy: false,
+  }
+)
 
 type Student = {
-  avatar: string
-  name: string
-  id: string
+  _id: string
+  assignedInstruments: string[]
+  assignedSections: any[] // The image shows [{...}], implying an array of objects
   email: string
-  section: string
-  proficiency: 'beginner' | 'expert' | 'intermediate'
+  name: string
+  gender: string
+  profileImageURL: string
 }
 
-const data = ref<Student[]>([
-  {
-    avatar: '',
-    name: 'Juan Dela Cruz',
-    id: '4600',
-    email: 'juan.delacruz@example.com',
-    section: 'A1',
-    proficiency: 'beginner',
-  },
-  {
-    avatar: '',
-    name: 'Maria Santos',
-    id: '4601',
-    email: 'maria.santos@example.com',
-    section: 'A2',
-    proficiency: 'intermediate',
-  },
-  {
-    avatar: '',
-    name: 'Jose Reyes',
-    id: '4602',
-    email: 'jose.reyes@example.com',
-    section: 'A3',
-    proficiency: 'expert',
-  },
-  {
-    avatar: '',
-    name: 'Ana Mendoza',
-    id: '4603',
-    email: 'ana.mendoza@example.com',
-    section: 'A4',
-    proficiency: 'beginner',
-  },
-  {
-    avatar: '',
-    name: 'Pedro Bautista',
-    id: '4604',
-    email: 'pedro.bautista@example.com',
-    section: 'A5',
-    proficiency: 'intermediate',
-  },
-  {
-    avatar: '',
-    name: 'Luisa Flores',
-    id: '4605',
-    email: 'luisa.flores@example.com',
-    section: 'A6',
-    proficiency: 'expert',
-  },
-  {
-    avatar: '',
-    name: 'Ramon Villanueva',
-    id: '4606',
-    email: 'ramon.villanueva@example.com',
-    section: 'A7',
-    proficiency: 'beginner',
-  },
-  {
-    avatar: '',
-    name: 'Carmen Cruz',
-    id: '4607',
-    email: 'carmen.cruz@example.com',
-    section: 'A8',
-    proficiency: 'beginner',
-  },
-  {
-    avatar: '',
-    name: 'Miguel Ramos',
-    id: '4608',
-    email: 'miguel.ramos@example.com',
-    section: 'A9',
-    proficiency: 'intermediate',
-  },
-  {
-    avatar: '',
-    name: 'Rosa Navarro',
-    id: '4609',
-    email: 'rosa.navarro@example.com',
-    section: 'A10',
-    proficiency: 'beginner',
-  },
-  {
-    avatar: '',
-    name: 'Andres Santiago',
-    id: '4610',
-    email: 'andres.santiago@example.com',
-    section: 'A11',
-    proficiency: 'expert',
-  },
-  {
-    avatar: '',
-    name: 'Elena Ramos',
-    id: '4611',
-    email: 'elena.robles@example.com',
-    section: 'A12',
-    proficiency: 'beginner',
-  },
-  {
-    avatar: '',
-    name: 'Carlos Domingo',
-    id: '4612',
-    email: 'carlos.domingo@example.com',
-    section: 'A13',
-    proficiency: 'beginner',
-  },
-  {
-    avatar: '',
-    name: 'Teresa Marquez',
-    id: '4613',
-    email: 'teresa.marquez@example.com',
-    section: 'A14',
-    proficiency: 'beginner',
-  },
-  {
-    avatar: '',
-    name: 'Ricardo Enriquez',
-    id: '4614',
-    email: 'ricardo.enriquez@example.com',
-    section: 'A15',
-    proficiency: 'beginner',
-  },
-  {
-    avatar: '',
-    name: 'Sofia Aguirre',
-    id: '4615',
-    email: 'sofia.aguirre@example.com',
-    section: 'A16',
-    proficiency: 'beginner',
-  },
-  {
-    avatar: '',
-    name: 'Manuel Rivera',
-    id: '4616',
-    email: 'manuel.rivera@example.com',
-    section: 'A17',
-    proficiency: 'expert',
-  },
-  {
-    avatar: '',
-    name: 'Beatriz Valdez',
-    id: '4617',
-    email: 'beatriz.valdez@example.com',
-    section: 'A18',
-    proficiency: 'beginner',
-  },
-  {
-    avatar: '',
-    name: 'Diego Salazar',
-    id: '4618',
-    email: 'diego.salazar@example.com',
-    section: 'A19',
-    proficiency: 'beginner',
-  },
-  {
-    avatar: '',
-    name: 'Lourdes Pascual',
-    id: '4619',
-    email: 'lourdes.pascual@example.com',
-    section: 'A20',
-    proficiency: 'beginner',
-  }
-])
+const UAvatar = resolveComponent('UAvatar')
+
+type Section = {
+  _id: string
+  name: string
+  // ... other fields
+}
 
 const columns: TableColumn<Student>[] = [
   {
-    accessorKey: 'avatar',
-    header: ''
+    accessorKey: 'profileImageURL',
+    header: '',
+    // Using `resolveComponent` with a string name can be unreliable during SSR hydration.
+    // It's much safer to reference the auto-imported component constructor `UAvatar` directly.
+    cell: ({ row }) => h(UAvatar, { src: row.original.profileImageURL })
   },
   {
     accessorKey: 'name',
-    header: 'Name'
+    header: 'Name',  
   },
   {
-    accessorKey: 'id',
+    accessorKey: '_id',
     header: 'Student #',
-    cell: ({ row }) => `#${row.getValue('id')}`
+    cell: ({ row }) => `#${row.getValue('_id')}`
   },
   {
     accessorKey: 'email',
     header: 'Email'
   },
   {
-    accessorKey: 'section',
-    header: 'Section'
+    accessorKey: 'gender',
+    header: 'Gender'
   },
-  {
-    accessorKey: 'proficiency',
-    header: 'Proficiency',
+    {
+    accessorKey: 'assignedSections',
+    header: 'Section',
     cell: ({ row }) => {
-      const color = {
-        beginner: 'success' as const,
-        expert: 'error' as const,
-        intermediate: 'neutral' as const
-      }[row.getValue('proficiency') as string]
-
-      return h(UBadge, { class: 'capitalize', variant: 'subtle', color }, () =>
-        row.getValue('proficiency')
-      )
-    }
+  const sections = row.getValue('assignedSections') as Section[]
+  
+  if (!sections) return ''
+  return sections.map(section => section.name).join(', ')
+  }
+  },
+    {
+    accessorKey: 'assignedInstruments',
+    header: 'Instruments',
+    cell: ({ row }) => (row.getValue('assignedInstruments') as any[])?.length
   },
 ]
+
+// TABLE FILTER SCRIPT
 
 const table = useTemplateRef('table')
 
@@ -228,6 +107,8 @@ const columnFilters = ref([
     value: ''
   }
 ])
+
+// END TABLE FILTER SCRIPT
 
 // FORM SCRIPT 
 
@@ -305,8 +186,7 @@ const SAAB = ref(['Male', 'Female'])
       </div>
 
 
-      <UTable sticky ref="table" v-model:column-filters="columnFilters" :data="data" :columns="columns"
-        class="flex-1 max-h-[70vh]" />
+      <UTable ref="table" v-model:column-filters="columnFilters" sticky :data="data || []" :columns="columns" :loading="status === 'pending'" class="flex-1 max-h-[70vh]" />
     </UPageCard>
   </UContainer>
 

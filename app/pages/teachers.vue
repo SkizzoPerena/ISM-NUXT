@@ -27,8 +27,7 @@ const { data, status } = await useAsyncData('teachers',
       return rows.map((teacher: any) => ({
         _id: teacher._id,
         email: teacher.email,
-        firstName: teacher.firstName,
-        lastName: teacher.lastName,
+        name: teacher.firstName + ' ' + teacher.lastName,
         gender: teacher.gender,
         profileImageURL: teacher.profileImageURL,
         assignedSections: teacher.assignedSections
@@ -42,8 +41,7 @@ const { data, status } = await useAsyncData('teachers',
 type Teacher = {
   _id: string
   email: string
-  firstName: string
-  lastName: string
+  name: string
   gender: string
   profileImageURL: string
   assignedSections: string[]
@@ -60,12 +58,8 @@ const columns: TableColumn<Teacher>[] = [
     cell: ({ row }) => h(UAvatar, { src: row.original.profileImageURL })
   },
   {
-    accessorKey: 'firstName',
-    header: 'First Name'
-  },
-  {
-    accessorKey: 'lastName',
-    header: 'Last Name'
+    accessorKey: 'name',
+    header: 'Name'
   },
   {
     accessorKey: '_id',
@@ -87,6 +81,18 @@ const columns: TableColumn<Teacher>[] = [
   },
 ]
 
+// TABLE FILTER SCRIPT
+
+const table = useTemplateRef('table')
+
+const columnFilters = ref([
+  {
+    id: 'name',
+    value: ''
+  }
+])
+
+// END TABLE FILTER SCRIPT
 
 // FORM SCRIPT 
 
@@ -102,7 +108,9 @@ const columns: TableColumn<Teacher>[] = [
       <div class="flex items-center gap-4 mb-4">
         <div class="text-lg font-bold">Teachers</div>
         <div style="margin-left: auto">
-
+          <UInput :model-value="table?.tableApi?.getColumn('name')?.getFilterValue() as string" class="max-w-sm mr-5"
+            placeholder="Search students..."
+            @update:model-value="table?.tableApi?.getColumn('name')?.setFilterValue($event)" />
         </div>
       </div>
 
@@ -113,7 +121,7 @@ const columns: TableColumn<Teacher>[] = [
         Wrapping the component in <ClientOnly> ensures it only renders in the browser, avoiding the error.
       -->
       <ClientOnly>
-        <UTable sticky :data="data || []" :columns="columns" :loading="status === 'pending'" class="flex-1 max-h-[70vh]" />
+        <UTable ref="table" v-model:column-filters="columnFilters" sticky :data="data || []" :columns="columns" :loading="status === 'pending'" class="flex-1 max-h-[70vh]" />
       </ClientOnly>
     </UPageCard>
   </UContainer>
