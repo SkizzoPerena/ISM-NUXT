@@ -187,7 +187,7 @@ defineShortcuts({
 
           <!-- Avatar -->
           <UDropdownMenu :items="userdropdown">
-            <UAvatar :src="user?.profileImageURL" class="ml-2" />
+            <UAvatar :src="user?.profileImageURL" :alt="`${user?.firstName || ''} ${user?.lastName || ''}`" class="ml-2" />
           </UDropdownMenu>
           
 
