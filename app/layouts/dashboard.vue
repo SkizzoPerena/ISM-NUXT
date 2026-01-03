@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { user } from '#build/ui'
 import type { NavigationMenuItem } from '@nuxt/ui'
 
 const items: NavigationMenuItem[][] = [[{
@@ -10,7 +9,7 @@ const items: NavigationMenuItem[][] = [[{
 {
   label: 'Sections',
   icon: 'i-lucide-users',
-  to: '/section',
+  to: '/sections',
 
 }, 
  {
@@ -74,7 +73,10 @@ type AdminAccount = {
   profileImageURL: string,
 }
 
-const { data } = await useFetch<{ admin: AdminAccount }>('https://noteworthy-z9k0.onrender.com/api/admin/account', {
+// Create a shared state for the user data that will be accessible across all pages using this layout.
+const user = useState<AdminAccount | null>('user', () => null)
+
+const { data } = useFetch<{ admin: AdminAccount }>('https://noteworthy-z9k0.onrender.com/api/admin/account', {
   headers: {
     // Attach the authentication token to the request
     Authorization: `${useAuthToken().value}`
@@ -91,19 +93,25 @@ const { data } = await useFetch<{ admin: AdminAccount }>('https://noteworthy-z9k
     toast.add({ title: 'Error', description: errorMessage, color: 'error' })
   },
   lazy: true,
-
 })
 
-console.log('API Response Data:', data.value)
+// When the data from the API is fetched, update the shared 'user' state.
+// The `watch` with `immediate: true` ensures this runs on both server and client,
+// and handles the lazy-loaded data when it arrives.
+watch(data, (newData) => {
+  if (newData?.admin) {
+    user.value = newData.admin
+  }
+}, { immediate: true })
 
 const userdropdown = computed(() => [
-  // Use optional chaining to safely access properties of `data.value.admin`
+  // Use optional chaining to safely access properties of the shared `user` state
   // and provide fallback empty strings for display if data is not yet available.
   [
     {
-      label: `${data.value?.admin?.firstName || ''} ${data.value?.admin?.lastName || ''}`,
+      label: `${user.value?.firstName || ''} ${user.value?.lastName || ''}`,
       avatar: {
-        src: data.value?.admin?.profileImageURL || ''
+        src: user.value?.profileImageURL || ''
       },
       type: 'label'
     }
@@ -179,7 +187,7 @@ defineShortcuts({
 
           <!-- Avatar -->
           <UDropdownMenu :items="userdropdown">
-            <UAvatar :src="data?.admin?.profileImageURL" class="ml-2" />
+            <UAvatar :src="user?.profileImageURL" class="ml-2" />
           </UDropdownMenu>
           
 
