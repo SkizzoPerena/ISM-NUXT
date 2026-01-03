@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { user } from '#build/ui'
 import type { NavigationMenuItem } from '@nuxt/ui'
 
 const items: NavigationMenuItem[][] = [[{
@@ -8,28 +7,20 @@ const items: NavigationMenuItem[][] = [[{
   to: '/',
 }, 
 {
-  label: 'Sections',
+  label: 'My Sections',
   icon: 'i-lucide-users',
   to: '/section',
 
 }, 
- {
-  label: 'Users',
+{
+  label: 'My Students',
   icon: 'i-lucide-book-user',
-  defaultOpen: true,
-  children: [{
-    label: 'Teachers',
-    to: '/teachers'
-  }, {
-    label: 'Students',
-    to: '/students'
-  }, {
-    label: 'Guardians'
-  }]
-},
+  to: '/students',
+
+}, 
 
 {
-  label: 'Materials',
+  label: 'My Materials',
   icon: 'i-lucide-book-open-text',
   defaultOpen: true,
   children: [{
@@ -63,46 +54,13 @@ const authToken = useAuthToken()
 async function signOut() {
   authToken.value = null // Clear the token from the state.
 }
-const toast = useToast()
 
-type AdminAccount = {
-  _id: string,
-  email: string,
-  firstName: string,
-  lastName: string,
-  profileImageURL: string,
-}
-
-const { data } = await useFetch<{ admin: AdminAccount }>('https://noteworthy-z9k0.onrender.com/api/admin/account', {
-  headers: {
-    // Attach the authentication token to the request
-    Authorization: `${useAuthToken().value}`
-  },
-  onResponse({ response }) {
-    // This runs on a successful response
-    if (response.ok) {
-      toast.add({ title: 'API response success!', color: 'success' })
-    }
-  },
-  onResponseError({ response }) {
-    // This runs on an error response. The error message is typically in response._data.message
-    const errorMessage = (response._data as { message?: string })?.message || 'Failed to fetch API response.'
-    toast.add({ title: 'Error', description: errorMessage, color: 'error' })
-  },
-  lazy: true,
-
-})
-
-console.log('API Response Data:', data.value)
-
-const userdropdown = computed(() => [
-  // Use optional chaining to safely access properties of `data.value.admin`
-  // and provide fallback empty strings for display if data is not yet available.
+const userdropdown = ref([
   [
     {
-      label: `${data.value?.admin?.firstName || ''} ${data.value?.admin?.lastName || ''}`,
+      label: 'Juan Dela Cruz',
       avatar: {
-        src: data.value?.admin?.profileImageURL || ''
+        src: 'https://github.com/benjamincanac.png'
       },
       type: 'label'
     }
@@ -123,7 +81,7 @@ const userdropdown = computed(() => [
     {
       label: 'Sign out',
       icon: 'i-lucide-log-out',
-      onClick: signOut,
+      click: signOut,
       to: '/login'
     },
     
@@ -178,7 +136,7 @@ defineShortcuts({
 
           <!-- Avatar -->
           <UDropdownMenu :items="userdropdown">
-            <UAvatar :src="data?.admin?.profileImageURL" class="ml-2" />
+            <UAvatar src="https://github.com/benjamincanac.png"  class="ml-2" />
           </UDropdownMenu>
           
 

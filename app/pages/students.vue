@@ -260,7 +260,7 @@ const SAAB = ref(['Male', 'Female'])
   <UContainer>
     <UPageCard>
 
-      <div class="flex">
+      <div class="flex items-center gap-4 mb-4">
         <div class="text-lg font-bold">Students</div>
         <div style="margin-left: auto">
           <UInput :model-value="table?.tableApi?.getColumn('name')?.getFilterValue() as string" class="max-w-sm mr-5"
