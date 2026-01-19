@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import { h, resolveComponent } from 'vue'
+import { h, resolveComponent, computed } from 'vue'
 import type { TabsItem } from '@nuxt/ui'
 import type { TableColumn } from '@nuxt/ui'
 
@@ -11,6 +11,68 @@ const UButton = resolveComponent('UButton')
 definePageMeta({
   layout: 'dashboard',
 })
+
+// Get route to access query params
+const route = useRoute()
+const sectionId = computed(() => route.query.id as string)
+
+// Define types for the data we expect from the API
+type Student = {
+  _id: string
+  firstName: string
+  lastName: string
+  email: string
+  profileImageURL: string
+  // other fields
+}
+
+type Teacher = {
+  _id: string
+  firstName: string
+  lastName: string
+  profileImageURL?: string
+  // other fields
+}
+
+// This is the new/updated type for a single journal
+type Journal = {
+  _id: string
+  title: string
+  createdAt: string
+  description: string
+}
+
+type SectionDetail = {
+  _id: string
+  name: string
+  students: Student[]
+  teachers: Teacher[]
+  journals: Journal[]
+}
+
+// Fetch section details from the API using the ID from the URL
+const { data: section, status } = await useAsyncData<SectionDetail>(
+  `section-${sectionId.value}`,
+  () => $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/sections/${sectionId.value}`, {
+    headers: {
+      Authorization: `${useAuthToken().value}`
+    },
+    onResponse({ response }) {
+      // This will log the raw response body.
+      // Check your browser's developer console to see the structure of the data.
+      console.log('API Response:', response._data)
+    }
+  }),
+  {
+    transform: (response: any): SectionDetail => {
+      // The API response for a single item is likely nested under a 'data' or 'section' key.
+      // This ensures we get the actual section object.
+      return response.data || response.section || response
+    },
+    // This ensures the data re-fetches if you navigate between sections without a full page reload
+    watch: [sectionId]
+  }
+)
 
 const items = [
   {
@@ -36,176 +98,54 @@ const items = [
 
 // PEOPLE TAB SCRIPT
 
-type Student = {
-  avatar: string
-  name: string
-  id: string
-  email: string
-}
+const studentData = computed(() => {
+  if (!section.value?.students) return []
+  // Map the fetched student data to the format the table expects.
+  return section.value.students.map(s => ({
+    avatar: s.profileImageURL,
+    name: `${s.firstName} ${s.lastName}`,
+    id: s._id,
+    email: s.email,
+  }))
+})
 
-const data = ref<Student[]>([
-  {
-    avatar: '',
-    name: 'Juan Dela Cruz',
-    id: '4600',
-    email: 'juan.delacruz@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Maria Santos',
-    id: '4601',
-    email: 'maria.santos@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Jose Reyes',
-    id: '4602',
-    email: 'jose.reyes@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Ana Mendoza',
-    id: '4603',
-    email: 'ana.mendoza@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Pedro Bautista',
-    id: '4604',
-    email: 'pedro.bautista@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Luisa Flores',
-    id: '4605',
-    email: 'luisa.flores@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Ramon Villanueva',
-    id: '4606',
-    email: 'ramon.villanueva@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Carmen Cruz',
-    id: '4607',
-    email: 'carmen.cruz@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Miguel Ramos',
-    id: '4608',
-    email: 'miguel.ramos@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Rosa Navarro',
-    id: '4609',
-    email: 'rosa.navarro@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Andres Santiago',
-    id: '4610',
-    email: 'andres.santiago@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Elena Ramos',
-    id: '4611',
-    email: 'elena.robles@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Carlos Domingo',
-    id: '4612',
-    email: 'carlos.domingo@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Teresa Marquez',
-    id: '4613',
-    email: 'teresa.marquez@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Ricardo Enriquez',
-    id: '4614',
-    email: 'ricardo.enriquez@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Sofia Aguirre',
-    id: '4615',
-    email: 'sofia.aguirre@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Manuel Rivera',
-    id: '4616',
-    email: 'manuel.rivera@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Beatriz Valdez',
-    id: '4617',
-    email: 'beatriz.valdez@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Diego Salazar',
-    id: '4618',
-    email: 'diego.salazar@example.com',
-  },
-  {
-    avatar: '',
-    name: 'Lourdes Pascual',
-    id: '4619',
-    email: 'lourdes.pascual@example.com',
-  },
-])
+const UAvatar = resolveComponent('UAvatar')
 
-const columns: TableColumn<Student>[] = [
-  {
-    accessorKey: 'avatar',
-    header: ''
-  },
+const columns: TableColumn<any>[] = [
   {
     accessorKey: 'name',
-    header: ' '
+    header: 'Name',
+    cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
+      h(UAvatar, { src: row.original.avatar, alt: row.original.name }),
+      h('div', undefined, [
+        h('p', { class: 'font-medium' }, row.original.name),
+        h('p', { class: 'text-sm text-gray-500 dark:text-gray-400' }, row.original.email)
+      ])
+    ])
   },
   {
     accessorKey: 'id',
-    header: ' ',
+    header: 'Student #',
     cell: ({ row }) => `#${row.getValue('id')}`
-  },
-  {
-    accessorKey: 'email',
-    header: ' '
   },
 ]
 
-type Teacher = {
-  name: string,
-}
+const teacherData = computed(() => {
+  if (!section.value?.teachers) return []
+  return section.value.teachers.map(t => ({
+    name: `${t.firstName} ${t.lastName}`,
+    avatar: t.profileImageURL
+  }))
+})
 
-const teachers = ref<Teacher[]>([
-  {
-    name: 'Juan Dela Cruz',
-  }, {
-    name: 'Juan Dela Cruz',
-  }
-
-
-])
-
-const teacher_columns: TableColumn<Teacher>[] = [
+const teacher_columns: TableColumn<any>[] = [
   {
     accessorKey: 'name',
-    header: ' '
-  },
-
+    header: 'Name',
+    cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
+      h(UAvatar, { src: row.original.avatar, alt: row.original.name }),
+      h('p', { class: 'font-medium' }, row.original.name)
+    ])  },
 ]
 
 const table = useTemplateRef('table')
@@ -219,51 +159,11 @@ type Assessments = {
   date: string
 }
 
-const classassessmentdata = ref<Assessments[]>([
-  {
-    id: 'Class-wide Assessment 1',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Class-wide Assessment 2',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Class-wide Assessment 3',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Class-wide Assessment 4',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Class-wide Assessment 5',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-])
+// Data for assessments will be fetched based on the section.
+// For now, we'll initialize them as empty arrays.
+const classassessmentdata = ref<Assessments[]>([])
 
-const indiassessmentdata = ref<Assessments[]>([
-  {
-    id: 'Individual Assessment 1',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Individual Assessment 2',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Individual Assessment 3',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Individual Assessment 4',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Individual Assessment 5',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-])
+const indiassessmentdata = ref<Assessments[]>([])
 
 const assessmentcolumns: TableColumn<Assessments>[] = [
   {
@@ -299,42 +199,29 @@ const expanded = ref({ 1: true })
 
 // START JOURNALS TAB SCRIPT
 
-type Journals = {
-  id: string
-  date: string
-}
+// Data for journals will be fetched based on the section.
+const journalData = computed(() => {
+  if (!section.value?.journals) return []
+  // The data structure from the API should already match what the table needs.
+  return section.value.journals
+})
 
-const journaldata = ref<Journals[]>([
+const journalcolumns: TableColumn<Journal>[] = [
   {
-    id: 'Class-wide Assessment 1',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Class-wide Assessment 2',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Class-wide Assessment 3',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Class-wide Assessment 4',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Class-wide Assessment 5',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-])
-
-const journalcolumns: TableColumn<Journals>[] = [
-  {
-    accessorKey: 'id',
+    accessorKey: 'title',
     header: '',
   },
   {
-    accessorKey: 'date',
+    accessorKey: 'createdAt',
     header: 'Date',
+    cell: ({ row }) => {
+      const dateValue = row.getValue('createdAt') as string
+      if (!dateValue) return ''
+      const date = new Date(dateValue)
+      // Format to something like: "Oct 10, 2026, 20:15"
+      const formattedDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false }).format(date)
+      return `Due: ${formattedDate}`
+    }
   },
   {
     id: 'expand',
@@ -355,13 +242,18 @@ const journalcolumns: TableColumn<Journals>[] = [
       })
   },
 ]
+
 // END JOURNALS TAB SCRIPT
 </script>
 
 <template>
   <UContainer>
-    <UPageCard class="h-40">
-      <UPageHeader title="Grade 7 Section A" style="border-bottom: 0; margin-top: auto; padding-bottom: 0;" />
+
+    <UPageCard v-if="status === 'pending'" class="h-40 flex items-center justify-center">
+      <p>Loading section...</p>
+    </UPageCard>
+    <UPageCard v-else-if="section" class="h-40">
+      <UPageHeader :title="section.name" style="border-bottom: 0; margin-top: auto; padding-bottom: 0;" />
     </UPageCard>
 
     <UPageCard class="mt-6">
@@ -371,12 +263,12 @@ const journalcolumns: TableColumn<Journals>[] = [
         <template #people="{ item }">
           <UPageGrid class="mt-5">
             <UContainer class="lg:col-span-2">
-              <div class="text-lg font-bold" style="">Students</div>
-              <UTable sticky ref="table" :data="data" :columns="columns" :ui="{ thead: 'hidden' }" />
+              <div class="text-lg font-bold">Students ({{ studentData.length }})</div>
+              <UTable sticky ref="table" :data="studentData" :columns="columns" :loading="status === 'pending'" />
             </UContainer>
             <UContainer>
-              <div class="text-xl font-bold">Teachers</div>
-              <UTable :data="teachers" ref="table" :columns="teacher_columns" :ui="{ thead: 'hidden' }" />
+              <div class="text-xl font-bold">Teachers ({{ teacherData.length }})</div>
+              <UTable :data="teacherData" ref="table" :columns="teacher_columns" :loading="status === 'pending'" />
             </UContainer>
           </UPageGrid>
         </template>
@@ -411,10 +303,10 @@ const journalcolumns: TableColumn<Journals>[] = [
           <UContainer class="mt-5">
             <div class="text-lg font-bold" style="">Assigned Practice Journals</div>
 
-            <UTable v-model:expanded="expanded" :data="classassessmentdata" :columns="assessmentcolumns"
-              :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1">
+            <UTable v-model:expanded="expanded" :data="journalData" :columns="journalcolumns"
+              :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="status === 'pending'">
               <template #expanded="{ row }">
-                <pre>Insert assessment description here</pre>
+                <p class="p-4">{{ row.original.description }}</p>
               </template>
             </UTable>
           </UContainer>

@@ -42,6 +42,7 @@ type Section = {
 }
 
 const UAvatar = resolveComponent('UAvatar')
+const NuxtLink = resolveComponent('NuxtLink')
 
 type Teacher = {
   _id: string
@@ -54,6 +55,7 @@ const columns: TableColumn<Section>[] = [
   {
     accessorKey: 'name',
     header: 'Section Name',  
+    cell: ({ row }) => h(NuxtLink, { to: `/profile-section?id=${row.original._id}` }, { default: () => row.getValue('name') })
   },
   {
     accessorKey: '_id',

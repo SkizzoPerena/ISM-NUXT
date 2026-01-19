@@ -49,24 +49,20 @@ const UAvatar = resolveComponent('UAvatar')
 
 const columns: TableColumn<Guardian>[] = [
   {
-    accessorKey: 'profileImageURL',
-    header: '',
-    // Using `resolveComponent` with a string name can be unreliable during SSR hydration.
-    // It's much safer to reference the auto-imported component constructor `UAvatar` directly.
-    cell: ({ row }) => h(UAvatar, { src: row.original.profileImageURL, alt: row.original.name })
-  },
-  {
     accessorKey: 'name',
-    header: 'Name'
+    header: 'Name',
+    cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
+      h(UAvatar, { src: row.original.profileImageURL, alt: row.original.name }),
+      h('div', undefined, [
+        h('p', { class: 'font-medium' }, row.original.name),
+        h('p', { class: 'text-sm text-gray-500 dark:text-gray-400' }, row.original.email)
+      ])
+    ])
   },
   {
     accessorKey: '_id',
     header: 'Guardian #',
     cell: ({ row }) => `#${row.getValue('_id')}`
-  },
-  {
-    accessorKey: 'email',
-    header: 'Email'
   },
   {
     accessorKey: 'gender',

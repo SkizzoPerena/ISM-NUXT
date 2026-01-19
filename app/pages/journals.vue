@@ -1,8 +1,36 @@
 <script setup lang="ts">
 import type { FormError, FormSubmitEvent } from '@nuxt/ui'
-import { h, resolveComponent } from 'vue'
+import { h, resolveComponent, computed } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import type { TabsItem } from '@nuxt/ui'
+
+const { data, status } = await useAsyncData('journals',
+  () => $fetch<Journals[]>('https://noteworthy-z9k0.onrender.com/api/admin/journals', {
+    headers: {
+      Authorization: `${useAuthToken().value}`
+    },
+    onResponse({ response }) {
+      // This will log the raw response body.
+      // Check your browser's developer console to see the structure of the data.
+      console.log('API Response:', response._data)
+    }
+  }),
+  {
+    transform: (response: any) => {
+      // The API might return data inside a property, e.g., { "data": [...] }
+      // This line tries to find the array, assuming it might be nested.
+      const journalData = response?.data || response?.journals || response
+      const rows = Array.isArray(journalData) ? journalData : []
+      return rows.map((journal: any) => ({
+        _id: journal._id,
+        createdAt: journal.createdAt,
+        description: journal.description,
+        title: journal.title
+     }))
+    },
+    lazy: false,
+  }
+)
 
 const UButton = resolveComponent('UButton')
 
@@ -28,64 +56,28 @@ const items = [
 ] satisfies TabsItem[]
 
 type Journals = {
-  id: string
-  date: string
+  _id: string
+  title: string
+  createdAt: string
+  description: string
 }
-
-const classjournaldata = ref<Journals[]>([
-  {
-    id: 'Class-wide Journal 1',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Class-wide Journal 2',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Class-wide Journal 3',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Class-wide Journal 4',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Class-wide Journal 5',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-])
-
-const indijournaldata = ref<Journals[]>([
-  {
-    id: 'Individual Journal 1',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Individual Journal 2',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Individual Journal 3',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Individual Journal 4',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Individual Journal 5',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-])
 
 const journalcolumns: TableColumn<Journals>[] = [
   {
-    accessorKey: 'id',
+    accessorKey: 'title',
     header: '',
-  },
-  {
-    accessorKey: 'date',
+    },
+    {
+    accessorKey: 'createdAt',
     header: 'Date',
+    cell: ({ row }) => {
+      const dateValue = row.getValue('createdAt') as string
+      if (!dateValue) return ''
+      const date = new Date(dateValue)
+      // Format to something like: "Oct 10, 2026, 20:15"
+      const formattedDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false }).format(date)
+      return `Due: ${formattedDate}`
+    }
   },
   {
     id: 'expand',
@@ -202,10 +194,10 @@ const SAAB = ref(['Male', 'Female'])
 
 
 
-          <UTable ref="table" v-model:expanded="expanded" :data="classjournaldata" :columns="journalcolumns"
-            :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1">
+          <UTable ref="table" v-model:expanded="expanded" :data="data || []" :columns="journalcolumns" 
+            :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="status === 'pending'">
             <template #expanded="{ row }">
-              <pre>Insert journal description here</pre>
+              <p class="p-4">{{ row.original.description }}</p>
             </template>
           </UTable>
 
@@ -260,10 +252,10 @@ const SAAB = ref(['Male', 'Female'])
             </div>
           </div>
 
-          <UTable ref="table1" v-model:expanded="expanded" :data="indijournaldata" :columns="journalcolumns"
-            :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1">
+          <UTable ref="table1" v-model:expanded="expanded" :data="data || []" :columns="journalcolumns"
+            :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="status === 'pending'">
             <template #expanded="{ row }">
-              <pre>Insert journal description here</pre>
+              <p class="p-4">{{ row.original.description }}</p>
             </template>
           </UTable>
 
