@@ -110,6 +110,8 @@ const studentData = computed(() => {
 })
 
 const UAvatar = resolveComponent('UAvatar')
+const NuxtLink = resolveComponent('NuxtLink')
+
 
 const columns: TableColumn<any>[] = [
   {
@@ -118,7 +120,7 @@ const columns: TableColumn<any>[] = [
     cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
       h(UAvatar, { src: row.original.avatar, alt: row.original.name }),
       h('div', undefined, [
-        h('p', { class: 'font-medium' }, row.original.name),
+        h(NuxtLink, { to: `/profile-student?id=${row.original.id}`, class: 'font-medium'}, { default: () => row.getValue('name') }),
         h('p', { class: 'text-sm text-gray-500 dark:text-gray-400' }, row.original.email)
       ])
     ])
@@ -133,6 +135,7 @@ const columns: TableColumn<any>[] = [
 const teacherData = computed(() => {
   if (!section.value?.teachers) return []
   return section.value.teachers.map(t => ({
+    id: t._id,
     name: `${t.firstName} ${t.lastName}`,
     avatar: t.profileImageURL
   }))
@@ -144,7 +147,7 @@ const teacher_columns: TableColumn<any>[] = [
     header: 'Name',
     cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
       h(UAvatar, { src: row.original.avatar, alt: row.original.name }),
-      h('p', { class: 'font-medium' }, row.original.name)
+      h(NuxtLink, { to: `/profile-teacher?id=${row.original.id}`, class: 'font-medium' }, { default: () => row.getValue('name') })
     ])  },
 ]
 

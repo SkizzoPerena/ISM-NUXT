@@ -29,6 +29,8 @@ const { data, status } = await useAsyncData('students',
         assignedInstruments: student.assignedInstruments,
         assignedSections: student.assignedSections,
         email: student.email,
+        firstName: student.firstName, // Pass through firstName for linking
+        lastName: student.lastName,   // Pass through lastName for linking
         name: student.firstName + ' ' + student.lastName,
         gender: student.gender,
         profileImageURL: student.profileImageURL,      }))
@@ -40,14 +42,28 @@ const { data, status } = await useAsyncData('students',
 type Student = {
   _id: string
   assignedInstruments: string[]
-  assignedSections: any[] // The image shows [{...}], implying an array of objects
+  assignedSections: SectionInfo[] // Changed to SectionInfo[] for better type accuracy
   email: string
   name: string
+  firstName: string // Added for profile page linking
+  lastName: string // Added for profile page linking
   gender: string
   profileImageURL: string
 }
 
+type SectionInfo = {
+  _id: string
+  name: string
+}
+
+type InstrumentInfo = {
+  _id: string
+  name: string
+}
+
 const UAvatar = resolveComponent('UAvatar')
+const NuxtLink = resolveComponent('NuxtLink')
+
 
 type Section = {
   _id: string
@@ -61,8 +77,8 @@ const columns: TableColumn<Student>[] = [
     header: 'Name',
     cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
       h(UAvatar, { src: row.original.profileImageURL, alt: row.original.name }),
-      h('div', undefined, [
-        h('p', { class: 'font-medium' }, row.original.name),
+      h('div', undefined, [ // Wrap the student's name in a NuxtLink
+        h(NuxtLink, { to: `/profile-student?id=${row.original._id}`, class: 'font-medium'}, { default: () => row.getValue('name') }),
         h('p', { class: 'text-sm text-gray-500 dark:text-gray-400' }, row.original.email)
       ])
     ])

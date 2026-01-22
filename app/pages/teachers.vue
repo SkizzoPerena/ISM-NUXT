@@ -48,6 +48,7 @@ type Teacher = {
 }
 
 const UAvatar = resolveComponent('UAvatar')
+const NuxtLink = resolveComponent('NuxtLink')
 
 const columns: TableColumn<Teacher>[] = [
   {
@@ -56,10 +57,11 @@ const columns: TableColumn<Teacher>[] = [
     cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
       h(UAvatar, { src: row.original.profileImageURL, alt: row.original.name }),
       h('div', undefined, [
-        h('p', { class: 'font-medium' }, row.original.name),
+        h(NuxtLink, { to: `/profile-teacher?id=${row.original._id}`, class: 'font-medium'}, { default: () => row.getValue('name') }),
         h('p', { class: 'text-sm text-gray-500 dark:text-gray-400' }, row.original.email)
-      ])
-    ])
+      ]),
+      
+    ]),
   },
   {
     accessorKey: '_id',
