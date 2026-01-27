@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { FormError, FormSubmitEvent } from '@nuxt/ui'
-import { h } from 'vue'
+import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 
 definePageMeta({
@@ -46,6 +46,7 @@ type Guardian = {
 }
 
 const UAvatar = resolveComponent('UAvatar')
+const NuxtLink = resolveComponent('NuxtLink')
 
 const columns: TableColumn<Guardian>[] = [
   {
@@ -54,7 +55,7 @@ const columns: TableColumn<Guardian>[] = [
     cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
       h(UAvatar, { src: row.original.profileImageURL, alt: row.original.name }),
       h('div', undefined, [
-        h('p', { class: 'font-medium' }, row.original.name),
+        h(NuxtLink, { to: `/profile-guardian?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.original.name }),
         h('p', { class: 'text-sm text-gray-500 dark:text-gray-400' }, row.original.email)
       ])
     ])

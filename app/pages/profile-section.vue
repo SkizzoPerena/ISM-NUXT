@@ -47,7 +47,6 @@ type SectionDetail = {
   name: string
   students: Student[]
   teachers: Teacher[]
-  journals: Journal[]
 }
 
 // Fetch section details from the API using the ID from the URL
@@ -73,6 +72,54 @@ const { data: section, status } = await useAsyncData<SectionDetail>(
     watch: [sectionId]
   }
 )
+
+// Fetch assigned journals for the section
+const { data: journalEntries, status: journalEntriesStatus } = await useAsyncData<Journal[]>(
+  `section-journals-${sectionId.value}`,
+  () => $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/journal-entry/section/${sectionId.value}`, {
+    headers: {
+      Authorization: `${useAuthToken().value}`
+    },
+    onResponse({ response }) {
+      console.log('Journal Entries API Response:', response._data)
+    }
+  }),
+  {
+    transform: (response: any): Journal[] => {
+      const entriesData = response.data || response.journalEntries || response;
+      if (!Array.isArray(entriesData)) {
+        return [];
+      }
+
+      // The endpoint returns all journal entries for the section. We need to
+      // extract the unique journal assignments from this list.
+      const journalsMap = new Map<string, Journal>();
+
+      for (const entry of entriesData) {
+        // Ensure the nested data structure is valid before processing
+        if (entry && entry.journalSection && entry.journalSection.journalId) {
+          const journalTemplateId = entry.journalSection.journalId._id;
+
+          // Use a map to automatically handle deduplication based on the journal template ID,
+          // ensuring each unique journal appears only once.
+          if (!journalsMap.has(journalTemplateId)) {
+            journalsMap.set(journalTemplateId, {
+              // The link to the details page should use the journal's main ID.
+              _id: journalTemplateId,
+              title: entry.journalSection.journalId.title,
+              createdAt: entry.journalSection.endDate, // This is the due date
+              description: entry.journalSection.journalId.description,
+            });
+          }
+        }
+      }
+
+      // Convert the map values to an array to be used by the table
+      return Array.from(journalsMap.values());
+    },
+    watch: [sectionId]
+  }
+);
 
 const items = [
   {
@@ -196,23 +243,23 @@ const assessmentcolumns: TableColumn<Assessments>[] = [
       })
   },
 ]
-const expanded = ref({ 1: true })
+const expanded = ref({})
 
 // END ASSESSMENTS TAB SCRIPT
 
 // START JOURNALS TAB SCRIPT
 
 // Data for journals will be fetched based on the section.
-const journalData = computed(() => {
-  if (!section.value?.journals) return []
-  // The data structure from the API should already match what the table needs.
-  return section.value.journals
+const journalData = computed<Journal[]>(() => {
+  if (!journalEntries.value) return []
+  return journalEntries.value
 })
 
 const journalcolumns: TableColumn<Journal>[] = [
   {
     accessorKey: 'title',
-    header: '',
+    header: 'Title',
+    cell: ({ row }) => h(NuxtLink, { to: `/details-journal?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
   },
   {
     accessorKey: 'createdAt',
@@ -302,16 +349,21 @@ const journalcolumns: TableColumn<Journal>[] = [
         </template>
 
         <!-- JOURNALS TAB -->
-                 <template #journals="{ item }">
+        <template #journals="{ item }">
           <UContainer class="mt-5">
             <div class="text-lg font-bold" style="">Assigned Practice Journals</div>
 
             <UTable v-model:expanded="expanded" :data="journalData" :columns="journalcolumns"
-              :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="status === 'pending'">
+              :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="journalEntriesStatus === 'pending'">
+              <template #empty-state>
+                <div class="flex flex-col items-center justify-center py-6 gap-3">
+                  <span class="italic text-sm">No journals assigned to this section.</span>
+                </div>
+              </template>
               <template #expanded="{ row }">
                 <p class="p-4">{{ row.original.description }}</p>
               </template>
-            </UTable>
+            </UTable> 
           </UContainer>
 
         </template>

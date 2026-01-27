@@ -5,7 +5,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { TabsItem } from '@nuxt/ui'
 
 const { data, status } = await useAsyncData('journals',
-  () => $fetch<Journals[]>('https://noteworthy-z9k0.onrender.com/api/admin/journals', {
+  () => $fetch('https://noteworthy-z9k0.onrender.com/api/admin/journals', {
     headers: {
       Authorization: `${useAuthToken().value}`
     },
@@ -16,26 +16,38 @@ const { data, status } = await useAsyncData('journals',
     }
   }),
   {
-    transform: (response: any) => {
-      // The API might return data inside a property, e.g., { "data": [...] }
-      // This line tries to find the array, assuming it might be nested.
-      const journalData = response?.data || response?.journals || response
-      const rows = Array.isArray(journalData) ? journalData : []
-      return rows.map((journal: any) => ({
-        _id: journal._id,
-        createdAt: journal.createdAt,
-        description: journal.description,
-        title: journal.title
-     }))
+    transform: (response: any): Journals[] => {
+      const journalData = response?.data || response?.journals || response;
+      if (!Array.isArray(journalData)) {
+        return [];
+      }
+
+      // The /api/admin/journals endpoint returns a direct list of journal templates.
+      // We map over them to ensure the data structure is consistent and valid for the table.
+      return journalData
+        .map((journal: any) => {
+          // Basic validation to skip malformed entries
+          if (!journal || !journal._id || !journal.title) {
+            return null;
+          }
+          return {
+            _id: journal._id,
+            createdAt: journal.createdAt,
+            description: journal.description || '', // Ensure description is a string
+            title: journal.title,
+          };
+        })
+        .filter((journal): journal is Journals => journal !== null); // Filter out any nulls
     },
     lazy: false,
   }
 )
 
 const UButton = resolveComponent('UButton')
+const NuxtLink = resolveComponent('NuxtLink')
 
 definePageMeta({
-  layout: 'dashboard',
+  layout: 'dashboard', 
 })
 
 const UBadge = resolveComponent('UBadge')
@@ -65,7 +77,8 @@ type Journals = {
 const journalcolumns: TableColumn<Journals>[] = [
   {
     accessorKey: 'title',
-    header: '',
+    header: 'Title',
+    cell: ({ row }) => h(NuxtLink, { to: `/details-journal?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
     },
     {
     accessorKey: 'createdAt',
@@ -76,7 +89,7 @@ const journalcolumns: TableColumn<Journals>[] = [
       const date = new Date(dateValue)
       // Format to something like: "Oct 10, 2026, 20:15"
       const formattedDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false }).format(date)
-      return `Due: ${formattedDate}`
+      return `Created: ${formattedDate}`
     }
   },
   {
@@ -100,23 +113,21 @@ const journalcolumns: TableColumn<Journals>[] = [
 ]
 const expanded = ref({})
 
-const table = useTemplateRef('table')
-
 const table1 = useTemplateRef('table1')
 
 // FORM SCRIPT 
 
 const state = reactive({
-  email: undefined,
-  password: undefined
+  title: undefined,
+  description: undefined
 })
 
 type Schema = typeof state
 
 function validate(state: Partial<Schema>): FormError[] {
   const errors = []
-  if (!state.email) errors.push({ name: 'email', message: 'Required' })
-  if (!state.password) errors.push({ name: 'password', message: 'Required' })
+  if (!state.title) errors.push({ name: 'title', message: 'Required' })
+  if (!state.description) errors.push({ name: 'description', message: 'Required' })
   return errors
 }
 
@@ -126,8 +137,6 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   console.log(event.data)
 }
 
-const SAAB = ref(['Male', 'Female'])
-
 // END FORM SCRIPT
 </script>
 
@@ -135,135 +144,44 @@ const SAAB = ref(['Male', 'Female'])
   <UContainer>
     <UPageCard>
 
-      <div class="text-lg font-bold">Journals</div>
-      <UTabs :items="items" variant="link" :ui="{ trigger: 'grow' }" class="gap-4 w-full">
+                  <div class="flex items-center gap-4 mb-4">
+        <div class="text-lg font-bold">Journals</div>
+        <div style="margin-left: auto">
+          <UInput :model-value="table1?.tableApi?.getColumn('title')?.getFilterValue() as string" class="max-w-sm mr-5"
+            placeholder="Search journals..."
+            @update:model-value="table1?.tableApi?.getColumn('title')?.setFilterValue($event)" />
 
-        <!-- CLASSWIDE TAB -->
-        <template #classwide="{ item }">
+          <UModal :dismissible="false" title="Add New Journal">
 
-          <div class=flex>
-            <div style="margin-left: auto">
+            <UButton label="Add New Journal" />
 
-              <UInput :model-value="table?.tableApi?.getColumn('id')?.getFilterValue() as string" class="max-w-sm mr-5"
-                placeholder="Search Journals..."
-                @update:model-value="table?.tableApi?.getColumn('id')?.setFilterValue($event)" />
+            <template #body>
+              <UForm :validate="validate" :state="state" class="space-y-4" @submit="onSubmit">
+                <UFormField label="Title" name="title" required block>
+                  <UInput v-model="state.title" placeholder="e.g., Weekly Practice Routine" class="w-full" />
+                </UFormField>
 
-              <UModal :dismissible="false" title="Add Journal">
+                <UFormField label="Description" name="description" required block>
+                  <UTextarea v-model="state.description" placeholder="Describe the journal's purpose..." class="w-full" />
+                </UFormField>
 
-                <UButton label="Add Journal" />
+                <UButton type="submit" block>
+                  Add Journal
+                </UButton>
+              </UForm>
+            </template>
 
-                <template #body>
-                  <UForm :validate="validate" :state="state" class="space-y-4" @submit="onSubmit">
-                    <UFormField label="First Name" name="firstname" required block>
-                      <UInput placeholder="Juan" class="w-full" />
-                    </UFormField>
+          </UModal>
 
-                    <UFormField label="Last Name" name="lastname" required block>
-                      <UInput placeholder="Dela Cruz" class="w-full" />
-                    </UFormField>
+        </div>
+      </div>
 
-
-                    <UFormField label="Email Address" name="email" required block>
-                      <UInput v-model="state.email" placeholder="user@email.com" class="w-full" />
-                    </UFormField>
-
-                    <UFormField label="Password" name="password" required>
-                      <UInput v-model="state.password" type="password" placeholder="password" class="w-full" />
-                    </UFormField>
-                    <UFormField label="Sex assigned at birth" name="SAAB" required>
-                      <USelect placeholder="Select sex" :items="SAAB" class="w-full" />
-                    </UFormField>
-
-                    <UButton type="submit" block>
-                      Add Journal
-                    </UButton>
-                  </UForm>
-                </template>
-
-              </UModal>
-
-
-
-
-            </div>
-          </div>
-
-
-
-
-
-
-
-          <UTable ref="table" v-model:expanded="expanded" :data="data || []" :columns="journalcolumns" 
+      <UTable ref="table1" v-model:expanded="expanded" :data="data || []" :columns="journalcolumns"
             :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="status === 'pending'">
             <template #expanded="{ row }">
               <p class="p-4">{{ row.original.description }}</p>
             </template>
           </UTable>
-
-        </template>
-
-        <template #individual>
-
-          <div class=flex>
-            <div style="margin-left: auto">
-
-              <UInput :model-value="table1?.tableApi?.getColumn('id')?.getFilterValue() as string" class="max-w-sm mr-5"
-                placeholder="Search Journals..."
-                @update:model-value="table1?.tableApi?.getColumn('id')?.setFilterValue($event)" />
-
-              <UModal :dismissible="false" title="Add Journal">
-
-                <UButton label="Add Journal" />
-
-                <template #body>
-                  <UForm :validate="validate" :state="state" class="space-y-4" @submit="onSubmit">
-                    <UFormField label="First Name" name="firstname" required block>
-                      <UInput placeholder="Juan" class="w-full" />
-                    </UFormField>
-
-                    <UFormField label="Last Name" name="lastname" required block>
-                      <UInput placeholder="Dela Cruz" class="w-full" />
-                    </UFormField>
-
-
-                    <UFormField label="Email Address" name="email" required block>
-                      <UInput v-model="state.email" placeholder="user@email.com" class="w-full" />
-                    </UFormField>
-
-                    <UFormField label="Password" name="password" required>
-                      <UInput v-model="state.password" type="password" placeholder="password" class="w-full" />
-                    </UFormField>
-                    <UFormField label="Sex assigned at birth" name="SAAB" required>
-                      <USelect placeholder="Select sex" :items="SAAB" class="w-full" />
-                    </UFormField>
-
-                    <UButton type="submit" block>
-                      Add Journal
-                    </UButton>
-                  </UForm>
-                </template>
-
-              </UModal>
-
-
-
-
-            </div>
-          </div>
-
-          <UTable ref="table1" v-model:expanded="expanded" :data="data || []" :columns="journalcolumns"
-            :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="status === 'pending'">
-            <template #expanded="{ row }">
-              <p class="p-4">{{ row.original.description }}</p>
-            </template>
-          </UTable>
-
-
-        </template>
-
-      </UTabs>
-
 
     </UPageCard>
   </UContainer>

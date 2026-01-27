@@ -4,88 +4,71 @@ import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import type { TabsItem } from '@nuxt/ui'
 
-const UButton = resolveComponent('UButton')
-
 definePageMeta({
   layout: 'dashboard',
 })
 
-const UBadge = resolveComponent('UBadge')
-
-const items = [
+const { data, status } = await useAsyncData(
+  'assessments',
+  () => $fetch('https://noteworthy-z9k0.onrender.com/api/admin/assessments', {
+    headers: {
+      Authorization: `${useAuthToken().value}`
+    },
+    onResponse({ response }) {
+      console.log('Assessments API Response:', response._data)
+    }
+  }),
   {
-    label: 'Class-wide',
-    description: 'Make changes to your account here. Click save when you\'re done.',
-    icon: 'i-lucide-users',
-    slot: 'classwide' as const
-  },
-  {
-    label: 'Individual',
-    description: 'Change your password here. After saving, you\'ll be logged out.',
-    icon: 'i-lucide-text-search',
-    slot: 'individual' as const
-  },
-] satisfies TabsItem[]
+    transform: (response: any): Assessment[] => {
+      const assessmentData = response?.data || response?.assessments || response;
+      if (!Array.isArray(assessmentData)) {
+        return [];
+      }
+      return assessmentData
+        .map((assessment: any) => {
+          if (!assessment || !assessment._id || !assessment.title) {
+            return null;
+          }
+          return {
+            _id: assessment._id,
+            createdAt: assessment.createdAt,
+            instructions: assessment.instructions || '',
+            title: assessment.title,
+          };
+        })
+        .filter((assessment): assessment is Assessment => assessment !== null);
+    },
+    lazy: false,
+  }
+)
 
-type Assessments = {
-  id: string
-  date: string
+const UButton = resolveComponent('UButton')
+const NuxtLink = resolveComponent('NuxtLink')
+
+type Assessment = {
+  _id: string
+  title: string
+  createdAt: string
+  instructions: string
 }
 
-const classassessmentdata = ref<Assessments[]>([
+const assessmentcolumns: TableColumn<Assessment>[] = [
   {
-    id: 'Class-wide Assessment 1',
-    date: 'Due Oct 10, 2026, 20:15',
+    accessorKey: 'title',
+    header: 'Title',
+    cell: ({ row }) => h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
   },
   {
-    id: 'Class-wide Assessment 2',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Class-wide Assessment 3',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Class-wide Assessment 4',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Class-wide Assessment 5',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-])
-
-const indiassessmentdata = ref<Assessments[]>([
-  {
-    id: 'Individual Assessment 1',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Individual Assessment 2',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Individual Assessment 3',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Individual Assessment 4',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-  {
-    id: 'Individual Assessment 5',
-    date: 'Due Oct 10, 2026, 20:15',
-  },
-])
-
-const assessmentcolumns: TableColumn<Assessments>[] = [
-  {
-    accessorKey: 'id',
-    header: '',
-  },
-  {
-    accessorKey: 'date',
+    accessorKey: 'createdAt',
     header: 'Date',
+    cell: ({ row }) => {
+      const dateValue = row.getValue('createdAt') as string
+      if (!dateValue) return ''
+      const date = new Date(dateValue)
+      // Format to something like: "Oct 10, 2026, 20:15"
+      const formattedDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false }).format(date)
+      return `Created: ${formattedDate}`
+    }
   },
   {
     id: 'expand',
@@ -110,21 +93,19 @@ const expanded = ref({})
 
 const table = useTemplateRef('table')
 
-const table1 = useTemplateRef('table1')
-
 // FORM SCRIPT 
 
 const state = reactive({
-  email: undefined,
-  password: undefined
+  title: undefined,
+  instructions: undefined
 })
 
 type Schema = typeof state
 
 function validate(state: Partial<Schema>): FormError[] {
   const errors = []
-  if (!state.email) errors.push({ name: 'email', message: 'Required' })
-  if (!state.password) errors.push({ name: 'password', message: 'Required' })
+  if (!state.title) errors.push({ name: 'title', message: 'Required' })
+  if (!state.instructions) errors.push({ name: 'instructions', message: 'Required' })
   return errors
 }
 
@@ -134,8 +115,6 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   console.log(event.data)
 }
 
-const SAAB = ref(['Male', 'Female'])
-
 // END FORM SCRIPT
 </script>
 
@@ -143,135 +122,46 @@ const SAAB = ref(['Male', 'Female'])
   <UContainer>
     <UPageCard>
 
-      <div class="text-lg font-bold">Assessments</div>
-      <UTabs :items="items" variant="link" :ui="{ trigger: 'grow' }" class="gap-4 w-full">
+            <div class="flex items-center gap-4 mb-4">
+        <div class="text-lg font-bold">Assessments</div>
+        <div style="margin-left: auto">
+          <UInput :model-value="table?.tableApi?.getColumn('title')?.getFilterValue() as string" class="max-w-sm mr-5"
+            placeholder="Search assessments..."
+            @update:model-value="table?.tableApi?.getColumn('title')?.setFilterValue($event)" />
 
-        <!-- CLASSWIDE TAB -->
-        <template #classwide="{ item }">
+          <UModal :dismissible="false" title="Add New Assessment">
 
-          <div class=flex>
-            <div style="margin-left: auto">
+            <UButton label="Add New Assessment" />
 
-              <UInput :model-value="table?.tableApi?.getColumn('id')?.getFilterValue() as string" class="max-w-sm mr-5"
-                placeholder="Search assessments..."
-                @update:model-value="table?.tableApi?.getColumn('id')?.setFilterValue($event)" />
+            <template #body>
+              <UForm :validate="validate" :state="state" class="space-y-4" @submit="onSubmit">
+                <UFormField label="Title" name="title" required block>
+                  <UInput v-model="state.title" placeholder="e.g., Quarterly Skills Review" class="w-full" />
+                </UFormField>
 
-              <UModal :dismissible="false" title="Add Assessment">
+                <UFormField label="Instructions" name="instructions" required block>
+                  <UTextarea v-model="state.instructions" placeholder="Provide instructions for this assessment..."
+                    class="w-full" />
+                </UFormField>
 
-                <UButton label="Add Assessment" />
-
-                <template #body>
-                  <UForm :validate="validate" :state="state" class="space-y-4" @submit="onSubmit">
-                    <UFormField label="First Name" name="firstname" required block>
-                      <UInput placeholder="Juan" class="w-full" />
-                    </UFormField>
-
-                    <UFormField label="Last Name" name="lastname" required block>
-                      <UInput placeholder="Dela Cruz" class="w-full" />
-                    </UFormField>
-
-
-                    <UFormField label="Email Address" name="email" required block>
-                      <UInput v-model="state.email" placeholder="user@email.com" class="w-full" />
-                    </UFormField>
-
-                    <UFormField label="Password" name="password" required>
-                      <UInput v-model="state.password" type="password" placeholder="password" class="w-full" />
-                    </UFormField>
-                    <UFormField label="Sex assigned at birth" name="SAAB" required>
-                      <USelect placeholder="Select sex" :items="SAAB" class="w-full" />
-                    </UFormField>
-
-                    <UButton type="submit" block>
-                      Add Assessment
-                    </UButton>
-                  </UForm>
-                </template>
-
-              </UModal>
-
-
-
-
-            </div>
-          </div>
-
-
-
-
-
-
-
-          <UTable ref="table" v-model:expanded="expanded" :data="classassessmentdata" :columns="assessmentcolumns"
-            :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1">
-            <template #expanded="{ row }">
-              <pre>Insert assessment description here</pre>
+                <UButton type="submit" block>
+                  Add Assessment
+                </UButton>
+              </UForm>
             </template>
-          </UTable>
 
+          </UModal>
+
+        </div>
+      </div>
+      
+      <UTable ref="table" v-model:expanded="expanded" :data="data || []" :columns="assessmentcolumns"
+        :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }"
+        class="flex-1 mt-4 border-t border-default" :loading="status === 'pending'">
+        <template #expanded="{ row }">
+          <p class="p-4">{{ row.original.instructions }}</p>
         </template>
-
-        <template #individual>
-
-          <div class=flex>
-            <div style="margin-left: auto">
-
-              <UInput :model-value="table1?.tableApi?.getColumn('id')?.getFilterValue() as string" class="max-w-sm mr-5"
-                placeholder="Search assessments..."
-                @update:model-value="table1?.tableApi?.getColumn('id')?.setFilterValue($event)" />
-
-              <UModal :dismissible="false" title="Add Assessment">
-
-                <UButton label="Add Assessment" />
-
-                <template #body>
-                  <UForm :validate="validate" :state="state" class="space-y-4" @submit="onSubmit">
-                    <UFormField label="First Name" name="firstname" required block>
-                      <UInput placeholder="Juan" class="w-full" />
-                    </UFormField>
-
-                    <UFormField label="Last Name" name="lastname" required block>
-                      <UInput placeholder="Dela Cruz" class="w-full" />
-                    </UFormField>
-
-
-                    <UFormField label="Email Address" name="email" required block>
-                      <UInput v-model="state.email" placeholder="user@email.com" class="w-full" />
-                    </UFormField>
-
-                    <UFormField label="Password" name="password" required>
-                      <UInput v-model="state.password" type="password" placeholder="password" class="w-full" />
-                    </UFormField>
-                    <UFormField label="Sex assigned at birth" name="SAAB" required>
-                      <USelect placeholder="Select sex" :items="SAAB" class="w-full" />
-                    </UFormField>
-
-                    <UButton type="submit" block>
-                      Add Assessment
-                    </UButton>
-                  </UForm>
-                </template>
-
-              </UModal>
-
-
-
-
-            </div>
-          </div>
-
-          <UTable ref="table1" v-model:expanded="expanded" :data="indiassessmentdata" :columns="assessmentcolumns"
-            :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1">
-            <template #expanded="{ row }">
-              <pre>Insert assessment description here</pre>
-            </template>
-          </UTable>
-
-
-        </template>
-
-      </UTabs>
-
+      </UTable>
 
     </UPageCard>
   </UContainer>
