@@ -113,7 +113,7 @@ const { data: rubric, status } = await useAsyncData<RubricDetail | null>(
                   class="pb-4 mb-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0 last:mb-0">
                   <div class="flex items-start">
                     <p class="font-medium text-gray-900 dark:text-white">{{ index + 1 }}. {{ question.questionText }}</p>
-                    <UBadge :label="question.questionType" color="primary" variant="subtle" class="ml-4 flex-shrink-0" />
+                    <UBadge :label="question.questionType" color="primary" variant="subtle" class="ml-4 shrink-0" />
                   </div>
 
                   <div v-if="question.questionType === 'MULTIPLE CHOICE' && question.choices && question.choices.length > 0" class="mt-3 pl-6">

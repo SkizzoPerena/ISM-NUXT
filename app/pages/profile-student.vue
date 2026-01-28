@@ -1,9 +1,14 @@
 <script lang="ts" setup>
+import { h, resolveComponent, computed } from 'vue'
 import type { TabsItem } from '@nuxt/ui'
+import type { TableColumn } from '@nuxt/ui'
 
 definePageMeta({
   layout: 'dashboard',
 })
+
+const UButton = resolveComponent('UButton')
+const NuxtLink = resolveComponent('NuxtLink')
 
 const route = useRoute()
 const studentId = computed(() => route.query.id as string)
@@ -22,8 +27,15 @@ type InstrumentInfo = {
 type Journal = {
   _id: string
   title: string
-  createdAt: string
   description: string
+  endDate: string
+}
+
+type Assessment = {
+  _id: string
+  title: string
+  instructions: string
+  createdAt: string
 }
 
 type GuardianInfo = {
@@ -41,7 +53,6 @@ type StudentDetail = {
   gender: string
   profileImageURL: string
   assignedSections: SectionInfo[]
-  assignedJournals: Journal[]
 }
 
 // Fetch student details from the API using the ID from the URL
@@ -67,7 +78,6 @@ const { data: student, status } = await useAsyncData<StudentDetail>(
         gender: studentData.gender,
         profileImageURL: studentData.profileImageURL,
         assignedSections: studentData.assignedSections || [],
-        assignedJournals: studentData.assignedJournals || [],
       }
     },
     watch: [studentId]
@@ -124,6 +134,93 @@ const { data: instruments, status: instrumentsStatus } = await useAsyncData<Inst
   }
 )
 
+// Fetch all assigned journals from all sections the student is in
+const { data: studentJournals, status: studentJournalsStatus } = await useAsyncData<Journal[]>(
+  `student-journals-${studentId.value}`,
+  async () => {
+    if (!student.value?.assignedSections?.length) {
+      return [];
+    }
+
+    // Create a fetch promise for each section
+    const journalPromises = student.value.assignedSections.map(section =>
+      $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/journal-sections/section/${section._id}`, {
+        headers: { Authorization: `${useAuthToken().value}` }
+      })
+    );
+
+    // Wait for all fetches to complete
+    const sectionJournalsResponses = await Promise.all(journalPromises);
+
+    // Combine assignments from all sections into a single array
+    const allAssignments = sectionJournalsResponses.flatMap((response: any) => response.assignments || []);
+
+    // Deduplicate journals using a Map, in case a journal is assigned in multiple sections
+    const uniqueJournals = new Map<string, any>();
+    for (const assignment of allAssignments) {
+      if (assignment.journalId && !uniqueJournals.has(assignment.journalId._id)) {
+        uniqueJournals.set(assignment.journalId._id, assignment);
+      }
+    }
+
+    return Array.from(uniqueJournals.values());
+  },
+  {
+    transform: (assignments: any[]): Journal[] => {
+      return assignments.map(assignment => {
+        const journal = assignment.journalId;
+        if (!journal) return null;
+        return {
+          _id: journal._id,
+          title: journal.title,
+          endDate: assignment.endDate, // due date
+          description: journal.description,
+        };
+      }).filter((j): j is Journal => j !== null);
+    },
+    watch: [student] // Re-run if student data changes
+  }
+);
+
+// Fetch assigned assessments for the student
+const { data: studentAssessments, status: studentAssessmentsStatus } = await useAsyncData<Assessment[]>(
+  `student-assessments-${studentId.value}`,
+  () => $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/assessment-students/${studentId.value}`, {
+    headers: {
+      Authorization: `${useAuthToken().value}`
+    },
+    onResponse({ response }) {
+      console.log('Student Assessments API Response:', response._data)
+    }
+  }),
+  {
+    transform: (response: any): Assessment[] => {
+      // The response contains an 'assignments' array.
+      const assignments = response.assignments || response.data || response;
+      if (!Array.isArray(assignments)) {
+        console.error('Expected an array of student assessments, but received:', assignments);
+        return [];
+      }
+      return assignments.map((assignment: any) => {
+        // The actual assessment details are nested under 'assessmentId'
+        const assessment = assignment.assessmentId;
+        // Ensure the nested assessment object and its _id exist before processing.
+        if (!assessment || !assessment._id) {
+          console.warn('Assessment assignment is missing assessmentId or its _id:', assignment);
+          return null;
+        }
+        return {
+          _id: assessment._id,
+          title: assessment.title,
+          createdAt: assignment.createdAt, // Use the assignment creation date
+          instructions: assessment.instructions,
+        };
+      }).filter((a): a is Assessment => a !== null);
+    },
+    watch: [studentId]
+  }
+);
+
 // Helper function to format proficiency strings
 function formatProficiency(proficiency: string): string {
   if (!proficiency) return '';
@@ -169,7 +266,84 @@ const items = [
   },
 ] satisfies TabsItem[]
 
+const journalsExpanded = ref({})
+const assessmentsExpanded = ref({})
 
+const journalcolumns: TableColumn<Journal>[] = [
+  {
+    accessorKey: 'title',
+    header: 'Title',
+    cell: ({ row }) => h(NuxtLink, { to: `/details-journal?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
+  },
+  {
+    accessorKey: 'endDate',
+    header: 'Date',
+    cell: ({ row }) => {
+      const dateValue = row.getValue('endDate') as string
+      if (!dateValue) return ''
+      const date = new Date(dateValue)
+      // Format to something like: "Oct 10, 2026, 20:15"
+      const formattedDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false }).format(date)
+      return `Due: ${formattedDate}`
+    }
+  },
+  {
+    id: 'expand',
+    cell: ({ row }) =>
+      h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        icon: 'i-lucide-chevron-down',
+        square: true,
+        'aria-label': 'Expand',
+        ui: {
+          leadingIcon: [
+            'transition-transform',
+            row.getIsExpanded() ? 'duration-200 rotate-180' : ''
+          ]
+        },
+        onClick: () => row.toggleExpanded()
+      })
+  },
+]
+
+const assessmentcolumns: TableColumn<Assessment>[] = [
+  {
+    accessorKey: 'title',
+    header: 'Title',
+    cell: ({ row }) => h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
+  },
+  {
+    accessorKey: 'createdAt',
+    header: 'Date',
+    cell: ({ row }) => {
+      const dateValue = row.getValue('createdAt') as string
+      if (!dateValue) return ''
+      const date = new Date(dateValue)
+      // Format to something like: "Oct 10, 2026, 20:15"
+      const formattedDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false }).format(date)
+      return `Created: ${formattedDate}`
+    }
+  },
+  {
+    id: 'expand',
+    cell: ({ row }) =>
+      h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        icon: 'i-lucide-chevron-down',
+        square: true,
+        'aria-label': 'Expand',
+        ui: {
+          leadingIcon: [
+            'transition-transform',
+            row.getIsExpanded() ? 'duration-200 rotate-180' : ''
+          ]
+        },
+        onClick: () => row.toggleExpanded()
+      })
+  },
+]
 
 </script>
 
@@ -261,36 +435,39 @@ const items = [
           <!-- ASSESSMENTS TAB -->
           <template #assessments="{ item }">
             <UContainer class="mt-5">
-              <UPageCard>
-                <template #header>
-                  <h3 class="text-lg font-semibold">Assessments</h3>
+              <div class="text-lg font-semibold" style="">Assigned Assessments</div>
+
+              <UTable v-model:expanded="assessmentsExpanded" :data="studentAssessments || []" :columns="assessmentcolumns"
+                :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="studentAssessmentsStatus === 'pending'">
+                <template #empty-state>
+                  <div class="flex flex-col items-center justify-center py-6 gap-3">
+                    <span class="italic text-sm">No assessments assigned to this student.</span>
+                  </div>
                 </template>
-                <p>No assessments available for this student yet.</p>
-              </UPageCard>
+                <template #expanded="{ row }">
+                  <p class="p-4">{{ row.original.instructions }}</p>
+                </template>
+              </UTable>
             </UContainer>
           </template>
 
           <!-- JOURNALS TAB -->
           <template #journals="{ item }">
-            <UPageCard class="mt-5" v-if="student.assignedJournals && student.assignedJournals.length > 0">
-              <template #header>
-                <h3 class="text-lg font-semibold">Assigned Journals</h3>
-              </template>
+            <UContainer class="mt-5">
+              <div class="text-lg font-semibold" style="">Assigned Practice Journals</div>
 
-              <div class="space-y-2">
-                <div v-for="journal in student.assignedJournals" :key="journal._id">
-                  <NuxtLink :to="`/journals?id=${journal._id}`" class="text-primary font-medium hover:underline">
-                    {{ journal.title }}
-                  </NuxtLink>
-                </div>
-              </div>
-            </UPageCard>
-            <UPageCard class="mt-5" v-else-if="status === 'success'">
-              <template #header>
-                <h3 class="text-lg font-semibold">Assigned Journals</h3>
-              </template>
-              <p>No journals assigned to this student.</p>
-            </UPageCard>
+              <UTable v-model:expanded="journalsExpanded" :data="studentJournals || []" :columns="journalcolumns"
+                :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="studentJournalsStatus === 'pending'">
+                <template #empty-state>
+                  <div class="flex flex-col items-center justify-center py-6 gap-3">
+                    <span class="italic text-sm">No journals assigned to this student.</span>
+                  </div>
+                </template>
+                <template #expanded="{ row }">
+                  <p class="p-4">{{ row.original.description }}</p>
+                </template>
+              </UTable>
+            </UContainer>
           </template>
         </UTabs>
       </UPageCard>

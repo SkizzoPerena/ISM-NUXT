@@ -38,8 +38,16 @@ type Teacher = {
 type Journal = {
   _id: string
   title: string
-  createdAt: string
+  createdAt: string // Assignment creation date
+  endDate: string // Assignment due date
   description: string
+}
+
+type Assessment = {
+  _id: string
+  title: string
+  createdAt: string // Assignment creation date
+  instructions: string
 }
 
 type SectionDetail = {
@@ -76,7 +84,7 @@ const { data: section, status } = await useAsyncData<SectionDetail>(
 // Fetch assigned journals for the section
 const { data: journalEntries, status: journalEntriesStatus } = await useAsyncData<Journal[]>(
   `section-journals-${sectionId.value}`,
-  () => $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/journal-entry/section/${sectionId.value}`, {
+  () => $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/journal-sections/section/${sectionId.value}`, {
     headers: {
       Authorization: `${useAuthToken().value}`
     },
@@ -86,36 +94,106 @@ const { data: journalEntries, status: journalEntriesStatus } = await useAsyncDat
   }),
   {
     transform: (response: any): Journal[] => {
-      const entriesData = response.data || response.journalEntries || response;
-      if (!Array.isArray(entriesData)) {
+      // The API response contains an 'assignments' array.
+      const assignments = response.assignments || response.data || response;
+      if (!Array.isArray(assignments)) {
+        console.error('Expected an array of journal assignments, but received:', assignments);
         return [];
       }
 
-      // The endpoint returns all journal entries for the section. We need to
-      // extract the unique journal assignments from this list.
-      const journalsMap = new Map<string, Journal>();
-
-      for (const entry of entriesData) {
-        // Ensure the nested data structure is valid before processing
-        if (entry && entry.journalSection && entry.journalSection.journalId) {
-          const journalTemplateId = entry.journalSection.journalId._id;
-
-          // Use a map to automatically handle deduplication based on the journal template ID,
-          // ensuring each unique journal appears only once.
-          if (!journalsMap.has(journalTemplateId)) {
-            journalsMap.set(journalTemplateId, {
-              // The link to the details page should use the journal's main ID.
-              _id: journalTemplateId,
-              title: entry.journalSection.journalId.title,
-              createdAt: entry.journalSection.endDate, // This is the due date
-              description: entry.journalSection.journalId.description,
-            });
-          }
+      // Map the assignment data to the 'Journal' type for the table.
+      return assignments.map(assignment => {
+        // The actual journal details are nested under the 'journalId' property.
+        const journal = assignment.journalId;
+        if (!journal) {
+          console.warn('Journal assignment is missing journalId property:', assignment);
+          return null; // or handle as needed
         }
+        
+        return {
+          _id: journal._id, // This is the ID of the journal template
+          title: journal.title,
+          createdAt: assignment.createdAt, // The assignment creation date
+          endDate: assignment.endDate, // The due date for this assignment
+          description: journal.description,
+        };
+      }).filter((j): j is Journal => j !== null);
+    },
+    watch: [sectionId]
+  }
+);
+
+// Fetch assigned group assessments for the section
+const { data: groupAssessments, status: groupAssessmentsStatus } = await useAsyncData<Assessment[]>(
+  `section-group-assessments-${sectionId.value}`,
+  () => $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/assessment-sections/${sectionId.value}/group`, {
+    headers: {
+      Authorization: `${useAuthToken().value}`
+    },
+    onResponse({ response }) {
+      console.log('Group Assessments API Response:', response._data)
+    }
+  }),
+  {
+    transform: (response: any): Assessment[] => {
+      const assignments = response.assignments || response.data || response;
+      if (!Array.isArray(assignments)) {
+        console.error('Expected an array of group assessment assignments, but received:', assignments);
+        return [];
       }
 
-      // Convert the map values to an array to be used by the table
-      return Array.from(journalsMap.values());
+      return assignments.map(assignment => {
+        const assessment = assignment.assessmentId;
+        if (!assessment) {
+          console.warn('Group assessment assignment is missing assessmentId property:', assignment);
+          return null;
+        }
+        
+        return {
+          _id: assessment._id,
+          title: assessment.title,
+          createdAt: assignment.createdAt,
+          instructions: assessment.instructions,
+        };
+      }).filter((a): a is Assessment => a !== null);
+    },
+    watch: [sectionId]
+  }
+);
+
+// Fetch assigned individual assessments for the section
+const { data: individualAssessments, status: individualAssessmentsStatus } = await useAsyncData<Assessment[]>(
+  `section-individual-assessments-${sectionId.value}`,
+  () => $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/assessment-sections/${sectionId.value}/individual`, {
+    headers: {
+      Authorization: `${useAuthToken().value}`
+    },
+    onResponse({ response }) {
+      console.log('Individual Assessments API Response:', response._data)
+    }
+  }),
+  {
+    transform: (response: any): Assessment[] => {
+      const assignments = response.assignments || response.data || response;
+      if (!Array.isArray(assignments)) {
+        console.error('Expected an array of individual assessment assignments, but received:', assignments);
+        return [];
+      }
+
+      return assignments.map(assignment => {
+        const assessment = assignment.assessmentId;
+        if (!assessment) {
+          console.warn('Individual assessment assignment is missing assessmentId property:', assignment);
+          return null;
+        }
+        
+        return {
+          _id: assessment._id,
+          title: assessment.title,
+          createdAt: assignment.createdAt,
+          instructions: assessment.instructions,
+        };
+      }).filter((a): a is Assessment => a !== null);
     },
     watch: [sectionId]
   }
@@ -204,25 +282,30 @@ const table = useTemplateRef('table')
 
 // START ASSESSMENT TAB SCRIPT
 
-type Assessments = {
-  id: string
-  date: string
-}
-
-// Data for assessments will be fetched based on the section.
-// For now, we'll initialize them as empty arrays.
-const classassessmentdata = ref<Assessments[]>([])
-
-const indiassessmentdata = ref<Assessments[]>([])
-
-const assessmentcolumns: TableColumn<Assessments>[] = [
+const assessmentcolumns: TableColumn<Assessment>[] = [
   {
-    accessorKey: 'id',
-    header: '',
+    accessorKey: 'title',
+    header: 'Title',
+    cell: ({ row }) => h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
   },
   {
-    accessorKey: 'date',
+    accessorKey: 'createdAt',
     header: 'Date',
+    cell: ({ row }) => {
+      const dateValue = row.getValue('createdAt') as string
+      if (!dateValue) return ''
+      const date = new Date(dateValue)
+      // Format to something like: "Oct 10, 2026, 20:15"
+      const formattedDate = new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false
+      }).format(date)
+      return `Created: ${formattedDate}`
+    }
   },
   {
     id: 'expand',
@@ -243,7 +326,11 @@ const assessmentcolumns: TableColumn<Assessments>[] = [
       })
   },
 ]
-const expanded = ref({})
+
+// Each table needs its own state for expanded rows to function independently.
+const groupAssessmentsExpanded = ref({})
+const individualAssessmentsExpanded = ref({})
+const journalsExpanded = ref({})
 
 // END ASSESSMENTS TAB SCRIPT
 
@@ -262,10 +349,10 @@ const journalcolumns: TableColumn<Journal>[] = [
     cell: ({ row }) => h(NuxtLink, { to: `/details-journal?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
   },
   {
-    accessorKey: 'createdAt',
+    accessorKey: 'endDate',
     header: 'Date',
     cell: ({ row }) => {
-      const dateValue = row.getValue('createdAt') as string
+      const dateValue = row.getValue('endDate') as string
       if (!dateValue) return ''
       const date = new Date(dateValue)
       // Format to something like: "Oct 10, 2026, 20:15"
@@ -313,11 +400,11 @@ const journalcolumns: TableColumn<Journal>[] = [
         <template #people="{ item }">
           <UPageGrid class="mt-5">
             <UContainer class="lg:col-span-2">
-              <div class="text-lg font-bold">Students ({{ studentData.length }})</div>
+              <div class="text-lg  font-semibold">Students ({{ studentData.length }})</div>
               <UTable sticky ref="table" :data="studentData" :columns="columns" :loading="status === 'pending'" />
             </UContainer>
             <UContainer>
-              <div class="text-xl font-bold">Teachers ({{ teacherData.length }})</div>
+              <div class="text-xl  font-semibold">Teachers ({{ teacherData.length }})</div>
               <UTable :data="teacherData" ref="table" :columns="teacher_columns" :loading="status === 'pending'" />
             </UContainer>
           </UPageGrid>
@@ -326,23 +413,33 @@ const journalcolumns: TableColumn<Journal>[] = [
         <!-- ASSESSMENTS TAB -->
         <template #assessment="{ item }">
           <UContainer class="mt-5">
-            <div class="text-lg font-bold" style="">Class-wide Assessments</div>
+            <div class="text-lg  font-semibold" style="">Class-wide Assessments</div>
 
-            <UTable v-model:expanded="expanded" :data="classassessmentdata" :columns="assessmentcolumns"
-              :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1">
+            <UTable v-model:expanded="groupAssessmentsExpanded" :data="groupAssessments || []" :columns="assessmentcolumns"
+              :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="groupAssessmentsStatus === 'pending'">
+              <template #empty-state>
+                <div class="flex flex-col items-center justify-center py-6 gap-3">
+                  <span class="italic text-sm">No class-wide assessments assigned to this section.</span>
+                </div>
+              </template>
               <template #expanded="{ row }">
-                <pre>Insert assessment description here</pre>
+                <p class="p-4">{{ row.original.instructions }}</p>
               </template>
             </UTable>
           </UContainer>
 
           <UContainer class="mt-5">
-            <div class="text-lg font-bold" style="">Individual Assessments</div>
+            <div class="text-lg  font-semibold" style="">Individual Assessments</div>
 
-            <UTable v-model:expanded="expanded" :data="indiassessmentdata" :columns="assessmentcolumns"
-              :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1">
+            <UTable v-model:expanded="individualAssessmentsExpanded" :data="individualAssessments || []" :columns="assessmentcolumns"
+              :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="individualAssessmentsStatus === 'pending'">
+              <template #empty-state>
+                <div class="flex flex-col items-center justify-center py-6 gap-3">
+                  <span class="italic text-sm">No individual assessments assigned to this section.</span>
+                </div>
+              </template>
               <template #expanded="{ row }">
-                  <pre>Insert assessment description here</pre>
+                  <p class="p-4">{{ row.original.instructions }}</p>
               </template>
             </UTable>
           </UContainer>
@@ -351,9 +448,9 @@ const journalcolumns: TableColumn<Journal>[] = [
         <!-- JOURNALS TAB -->
         <template #journals="{ item }">
           <UContainer class="mt-5">
-            <div class="text-lg font-bold" style="">Assigned Practice Journals</div>
+            <div class="text-lg  font-semibold" style="">Assigned Practice Journals</div>
 
-            <UTable v-model:expanded="expanded" :data="journalData" :columns="journalcolumns"
+            <UTable v-model:expanded="journalsExpanded" :data="journalData" :columns="journalcolumns"
               :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="journalEntriesStatus === 'pending'">
               <template #empty-state>
                 <div class="flex flex-col items-center justify-center py-6 gap-3">
