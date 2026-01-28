@@ -19,6 +19,13 @@ const items = [
 const route = useRoute()
 const journalId = computed(() => route.query.id as string)
 
+// Guard against missing journalId in the URL.
+// If the ID is not present, redirect to the journals list page.
+if (!journalId.value) {
+  console.error('Journal ID is missing from the URL. Redirecting to journals list.');
+  await navigateTo('/journals');
+}
+
 type QuestionType = "YES/NO" | "MULTIPLE CHOICE" | "ESSAY"
 
 type Question = {
@@ -48,93 +55,76 @@ type TeacherInfo = {
   profileImageURL?: string;
 }
 
-// Fetch journal details from the API using the ID from the URL
-const { data: journal, status } = await useAsyncData<JournalDetail | null>(
-  `journal-${journalId.value}`,
-  () => $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/journals/${journalId.value}`, {
-    headers: {
-      Authorization: `${useAuthToken().value}`
-    },
-    onResponse({ response }) {
-      // This will log the raw response body.
-      // Check your browser's developer console to see the structure of the data.
-      console.log('API Response:', response._data)
-    }
-  }),
-  {
-    transform: (response: any): JournalDetail | null => {
-      // The API response nests the journal details under the 'journal' key.
-      const journalData = response?.journal
-      if (!journalData) {
-        console.error('Journal data not found in API response:', response)
-        return null
-      }
-      return {
-        _id: journalData._id,
-        title: journalData.title,
-        createdAt: journalData.createdAt,
-        description: journalData.description,
-        updatedAt: journalData.updatedAt,
-        isDeleted: journalData.isDeleted,
-        questions: journalData.questions || [],
-        rubric: journalData.rubric,
-        supplementaryImageURL: journalData.supplementaryImageURL,
-        teacherId: journalData.teacherId,
-      }
-    },
-    // This ensures the data re-fetches if you navigate between teachers without a full page reload
-    watch: [journalId]
-  }
-)
+// Define a combined type for the page data
+type JournalPageData = {
+  journal: JournalDetail;
+  teacher: TeacherInfo | null;
+}
 
-// Fetch teacher details based on the journal's teacherId
-const { data: teacher, status: teacherStatus } = await useAsyncData<TeacherInfo | null>(
-  () => `teacher-${journal.value?.teacherId}`, // Dynamic key based on journal's teacherId
+// Fetch journal and its associated teacher details in a single, combined async call
+const { data, status } = await useAsyncData<JournalPageData | null>(
+  `journal-page-${journalId.value}`,
   async () => {
-    const teacherId = journal.value?.teacherId;
-    if (!teacherId) {
-      return null; // Don't fetch if teacherId is not available
-    }
-    const response = await $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/teacher/${teacherId}`, {
-      headers: {
-        Authorization: `${useAuthToken().value}`
-      },
-      onResponse({ response }) {
-        console.log('Teacher API Response:', response._data);
-      }
+    // 1. Fetch the primary journal details
+    const journalResponse: any = await $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/journals/${journalId.value}`, {
+      headers: { Authorization: `${useAuthToken().value}` },
     });
-    // Cast to `any` to handle potentially nested API response structures without TypeScript errors.
-    const teacherData = (response as any)?.data || (response as any)?.teacher || response;
-    if (!teacherData) {
-      console.error('Teacher data not found in API response:', response);
+    console.log('Journal API Response:', journalResponse);
+
+    const journalData = journalResponse?.journal;
+    if (!journalData) {
+      console.error('Journal data not found in API response:', journalResponse);
       return null;
     }
-    return {
-      _id: teacherData._id,
-      firstName: teacherData.firstName,
-      lastName: teacherData.lastName,
-      profileImageURL: teacherData.profileImageURL,
+
+    // Shape the journal data into our desired type
+    const journalDetail: JournalDetail = {
+      _id: journalData._id,
+      title: journalData.title,
+      createdAt: journalData.createdAt,
+      description: journalData.description,
+      updatedAt: journalData.updatedAt,
+      isDeleted: journalData.isDeleted,
+      questions: journalData.questions || [],
+      rubric: journalData.rubric,
+      supplementaryImageURL: journalData.supplementaryImageURL,
+      teacherId: journalData.teacherId,
     };
+
+    // 2. If a teacherId exists, fetch all teachers and find the matching one
+    if (journalDetail.teacherId) {
+      console.log(`[Teacher Fetch] Journal has teacherId: ${journalDetail.teacherId}. Fetching all teachers.`);
+      const teachersResponse: any = await $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/teacher`, {
+        headers: { Authorization: `${useAuthToken().value}` },
+      });
+      console.log('All Teachers API Response:', teachersResponse);
+
+      const allTeachersData = teachersResponse?.data || teachersResponse?.teachers || teachersResponse;
+      if (Array.isArray(allTeachersData)) {
+        const foundTeacher = allTeachersData.find((t: any) => t._id === journalDetail.teacherId);
+        if (foundTeacher) {
+          // Return the combined data if teacher is found
+          return { journal: journalDetail, teacher: foundTeacher };
+        } else {
+          console.error(`Teacher with ID ${journalDetail.teacherId} not found in the list.`);
+        }
+      } else {
+        console.error('Expected an array of teachers, but got:', allTeachersData);
+      }
+    }
+
+    // Return journal data even if teacher is not found or doesn't exist
+    return { journal: journalDetail, teacher: null };
   },
   {
-    // Watch the journal data to re-fetch teacher details if the journal changes
-    watch: [journal],
-    immediate: false, // Only fetch once journal is available
+    // This ensures the data re-fetches if you navigate between journals without a full page reload
+    watch: [journalId]
   }
 );
 
-// Fetch rubrics and log the response
-await useAsyncData(
-  'rubrics',
-  () => $fetch('https://noteworthy-z9k0.onrender.com/api/admin/rubrics', {
-    headers: {
-      Authorization: `${useAuthToken().value}`
-    },
-    onResponse({ response }) {
-      console.log('Rubrics API Response:', response._data)
-    }
-  })
-)
+// Computed properties to easily access the nested data in the template
+const journal = computed(() => data.value?.journal);
+const teacher = computed(() => data.value?.teacher);
 </script>
 
 <template>
@@ -147,9 +137,8 @@ await useAsyncData(
       <UPageCard>
         <UContainer>
           <UPageHeader :title="journal.title" style="border-bottom: 0; padding-bottom: 0;">
-            <div class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400" id="_id">
-              ID: #{{ journal._id }}
-              <span v-if="teacher" class="ml-4">Teacher: {{ teacher.firstName }} {{ teacher.lastName }}</span>
+            <div v-if="teacher" class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400">
+              Teacher: {{ teacher.firstName }} {{ teacher.lastName }}
             </div>
             <div class="text-lg mt-2 text-gray-500 dark:text-gray-400">Created: {{ new
               Date(journal.createdAt).toLocaleDateString() }}</div>

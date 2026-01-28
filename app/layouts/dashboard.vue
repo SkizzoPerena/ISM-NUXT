@@ -38,7 +38,11 @@ const items: NavigationMenuItem[][] = [[{
   }, {
     label: 'Journals',
     to: '/journals'
-  },]
+  },{
+    label: 'Rubrics',
+    to: '/rubrics'
+  },
+]
 },
 ], 
 
