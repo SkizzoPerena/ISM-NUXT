@@ -1,5 +1,5 @@
 <script setup lang="ts">
-
+import type { FormError, FormSubmitEvent } from '@nuxt/ui'
 import { h, resolveComponent, computed } from 'vue'
 import type { TabsItem } from '@nuxt/ui'
 import type { TableColumn } from '@nuxt/ui'
@@ -280,6 +280,48 @@ const table = useTemplateRef('table')
 
 // END PEOPLE TAB SCRIPT
 
+// EDIT SECTION FORM
+const isEditOpen = ref(false)
+const editState = reactive({ sectionName: '' })
+
+type EditSchema = typeof editState
+
+function validateEdit(state: Partial<EditSchema>): FormError[] {
+  const errors: FormError[] = []
+  if (!state.sectionName) errors.push({ name: 'sectionName', message: 'Required' })
+  return errors
+}
+
+const toast = useToast()
+
+function openEditModal() {
+  editState.sectionName = section.value?.name ?? ''
+  isEditOpen.value = true
+}
+
+async function onSubmitEdit(event: FormSubmitEvent<EditSchema>) {
+  if (!sectionId.value) return
+  try {
+    await $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/sections/${sectionId.value}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `${useAuthToken().value}`
+      },
+      body: {
+        name: editState.sectionName
+      }
+    })
+    toast.add({ title: 'Success', description: 'Section updated successfully.', color: 'success' })
+    isEditOpen.value = false
+    await refreshNuxtData(`section-${sectionId.value}`)
+  } catch (error) {
+    console.error('Error updating section:', error)
+    toast.add({ title: 'Error', description: 'Failed to update section.', color: 'error' })
+  }
+}
+
+// END EDIT SECTION FORM
+
 // START ASSESSMENT TAB SCRIPT
 
 const assessmentcolumns: TableColumn<Assessment>[] = [
@@ -390,7 +432,34 @@ const journalcolumns: TableColumn<Journal>[] = [
       <p>Loading section...</p>
     </UPageCard>
     <UPageCard v-else-if="section" class="h-40">
-      <UPageHeader :title="section.name" style="border-bottom: 0; margin-top: auto; padding-bottom: 0;" />
+      <div class="flex items-center justify-between w-full" style="border-bottom: 0; margin-top: auto; padding-bottom: 0;">
+        <UPageHeader :title="section.name" style="border-bottom: 0; padding-bottom: 0;" />
+        <UButton icon="i-lucide-pencil" variant="ghost" aria-label="Edit section" @click="openEditModal" />
+      </div>
+
+      <UModal v-model:open="isEditOpen" :dismissible="false">
+        <template #header>
+          <div class="flex items-center justify-between w-full">
+            <h3 class="text-lg font-semibold">Edit Section</h3>
+            <UButton icon="i-lucide-x" variant="ghost" @click="isEditOpen = false" />
+          </div>
+        </template>
+        <template #body>
+          <UForm :validate="validateEdit" :state="editState" class="space-y-4" @submit="onSubmitEdit">
+            <UFormField label="Section Name" name="sectionName" required block>
+              <UInput v-model="editState.sectionName" placeholder="Enter section name" class="w-full" />
+            </UFormField>
+            <div class="flex gap-2 justify-end">
+              <UButton type="button" variant="outline" @click="isEditOpen = false">
+                Cancel
+              </UButton>
+              <UButton type="submit">
+                Update Section
+              </UButton>
+            </div>
+          </UForm>
+        </template>
+      </UModal>
     </UPageCard>
 
     <UPageCard class="mt-6">
