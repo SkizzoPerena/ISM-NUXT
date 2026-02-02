@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { h, resolveComponent, computed } from 'vue'
-import type { TabsItem } from '@nuxt/ui'
+import type { TabsItem, FormError, FormSubmitEvent } from '@nuxt/ui'
 import type { TableColumn } from '@nuxt/ui'
 
 definePageMeta({
@@ -345,6 +345,110 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
   },
 ]
 
+// EDIT / DELETE STUDENT
+const isEditOpen = ref(false)
+const isDeleteOpen = ref(false)
+const isEditSubmitting = ref(false)
+const isDeleteSubmitting = ref(false)
+
+const editState = reactive({
+  firstName: '',
+  lastName: '',
+  email: '',
+  gender: '',
+})
+
+type EditSchema = typeof editState
+
+function validateEdit(state: Partial<EditSchema>): FormError[] {
+  const errors: FormError[] = []
+  if (!state.firstName) errors.push({ name: 'firstName', message: 'Required' })
+  if (!state.lastName) errors.push({ name: 'lastName', message: 'Required' })
+  if (!state.email) errors.push({ name: 'email', message: 'Required' })
+  if (!state.gender) errors.push({ name: 'gender', message: 'Required' })
+  return errors
+}
+
+const genderOptions = ref(['Male', 'Female'])
+const toast = useToast()
+
+function openEditModal() {
+  if (!student.value) return
+  editState.firstName = student.value.firstName
+  editState.lastName = student.value.lastName
+  editState.email = student.value.email
+  editState.gender = student.value.gender
+  isEditOpen.value = true
+}
+
+async function onSubmitEdit(event: FormSubmitEvent<EditSchema>) {
+  if (!studentId.value || isEditSubmitting.value) return
+  isEditSubmitting.value = true
+  try {
+    await $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/student/${studentId.value}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `${useAuthToken().value}`,
+      },
+      body: {
+        firstName: editState.firstName,
+        lastName: editState.lastName,
+        email: editState.email,
+        gender: editState.gender,
+      },
+    })
+
+    toast.add({
+      title: 'Success',
+      description: 'Student updated successfully.',
+      color: 'success',
+    })
+
+    isEditOpen.value = false
+    await refreshNuxtData(`student-${studentId.value}`)
+  } catch (error) {
+    console.error('Error updating student:', error)
+    toast.add({
+      title: 'Error',
+      description: 'Failed to update student.',
+      color: 'error',
+    })
+  } finally {
+    isEditSubmitting.value = false
+  }
+}
+
+async function onDeleteStudent() {
+  if (!studentId.value || isDeleteSubmitting.value) return
+  isDeleteSubmitting.value = true
+  try {
+    await $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/student/${studentId.value}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `${useAuthToken().value}`,
+      },
+    })
+
+    toast.add({
+      title: 'Deleted',
+      description: 'Student deleted successfully.',
+      color: 'success',
+    })
+
+    isDeleteOpen.value = false
+    await navigateTo('/students')
+  } catch (error) {
+    console.error('Error deleting student:', error)
+    toast.add({
+      title: 'Error',
+      description: 'Failed to delete student.',
+      color: 'error',
+    })
+  } finally {
+    isDeleteSubmitting.value = false
+  }
+}
+
 </script>
 
 <template>
@@ -356,12 +460,51 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
     <template v-else-if="student">
       <UPageCard>
         <div class="flex items-center">
-          <NuxtImg :src="student.profileImageURL || 'https://placehold.co/400x400'" :alt="`${student.firstName} ${student.lastName}`" width="200" height="200" class="rounded-full" fit="fill" preload/>
-          <UContainer class="ml-8">
-            <UPageHeader :title="`${student.firstName} ${student.lastName}`" style="border-bottom: 0; padding-bottom: 0;">
-              <div class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400" id="email">{{ student.email }}</div>
-              <div class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400" id="_id">#{{ student._id }}</div>
-            </UPageHeader>
+          <NuxtImg
+            :src="student.profileImageURL || 'https://placehold.co/400x400'"
+            :alt="`${student.firstName} ${student.lastName}`"
+            width="200"
+            height="200"
+            class="rounded-full"
+            fit="fill"
+            preload
+          />
+          <UContainer class="ml-8 w-full">
+            <div class="flex items-start justify-between w-full">
+              <UPageHeader
+                :title="`${student.firstName} ${student.lastName}`"
+                style="border-bottom: 0; padding-bottom: 0;"
+              >
+                <div
+                  class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400"
+                  id="email"
+                >
+                  {{ student.email }}
+                </div>
+                <div
+                  class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400"
+                  id="_id"
+                >
+                  #{{ student._id }}
+                </div>
+              </UPageHeader>
+
+              <div class="flex items-start gap-2">
+                <UButton
+                  icon="i-lucide-pencil"
+                  variant="ghost"
+                  aria-label="Edit student"
+                  @click="openEditModal"
+                />
+                <UButton
+                  icon="i-lucide-trash"
+                  color="red"
+                  variant="ghost"
+                  aria-label="Delete student"
+                  @click="isDeleteOpen = true"
+                />
+              </div>
+            </div>
           </UContainer>
         </div>
       </UPageCard>
@@ -471,6 +614,92 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
           </template>
         </UTabs>
       </UPageCard>
+
+      <!-- Edit Student Modal -->
+      <UModal v-model:open="isEditOpen" :dismissible="!isEditSubmitting">
+        <template #header>
+          <div class="flex items-center justify-between w-full">
+            <h3 class="text-lg font-semibold">Edit Student</h3>
+            <UButton
+              icon="i-lucide-x"
+              variant="ghost"
+              :disabled="isEditSubmitting"
+              @click="isEditOpen = false"
+            />
+          </div>
+        </template>
+        <template #body>
+          <UForm
+            :validate="validateEdit"
+            :state="editState"
+            class="space-y-4"
+            @submit="onSubmitEdit"
+          >
+            <UFormField label="First Name" name="firstName" required block>
+              <UInput v-model="editState.firstName" class="w-full" />
+            </UFormField>
+
+            <UFormField label="Last Name" name="lastName" required block>
+              <UInput v-model="editState.lastName" class="w-full" />
+            </UFormField>
+
+            <UFormField label="Email Address" name="email" required block>
+              <UInput v-model="editState.email" type="email" class="w-full" />
+            </UFormField>
+
+            <UFormField label="Gender" name="gender" required block>
+              <USelect
+                v-model="editState.gender"
+                :items="genderOptions"
+                placeholder="Select gender"
+                class="w-full"
+              />
+            </UFormField>
+
+            <div class="flex justify-end gap-2">
+              <UButton
+                type="button"
+                variant="outline"
+                :disabled="isEditSubmitting"
+                @click="isEditOpen = false"
+              >
+                Cancel
+              </UButton>
+              <UButton type="submit" :loading="isEditSubmitting" :disabled="isEditSubmitting">
+                Update Student
+              </UButton>
+            </div>
+          </UForm>
+        </template>
+      </UModal>
+
+      <!-- Delete Confirmation Modal -->
+      <UModal v-model:open="isDeleteOpen" :dismissible="!isDeleteSubmitting">
+        <template #header>
+          <h3 class="text-lg font-semibold">Delete Student</h3>
+        </template>
+        <template #body>
+          <p>Are you sure you want to delete this student? This action cannot be undone.</p>
+          <div class="flex justify-end gap-2 mt-6">
+            <UButton
+              type="button"
+              variant="outline"
+              :disabled="isDeleteSubmitting"
+              @click="isDeleteOpen = false"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="red"
+              :loading="isDeleteSubmitting"
+              :disabled="isDeleteSubmitting"
+              @click="onDeleteStudent"
+            >
+              Delete
+            </UButton>
+          </div>
+        </template>
+      </UModal>
 
     </template>
     <UPageCard v-else class="flex items-center justify-center h-64">

@@ -187,24 +187,77 @@ const columnFilters = ref([
 
 // FORM SCRIPT 
 
+const isStudentModalOpen = ref(false)
+const isSubmitting = ref(false)
+
 const state = reactive({
-  email: undefined,
-  password: undefined
+  firstName: '',
+  lastName: '',
+  email: '',
+  password: '',
+  gender: '',
 })
 
 type Schema = typeof state
 
 function validate(state: Partial<Schema>): FormError[] {
-  const errors = []
+  const errors: FormError[] = []
+  if (!state.firstName) errors.push({ name: 'firstName', message: 'Required' })
+  if (!state.lastName) errors.push({ name: 'lastName', message: 'Required' })
   if (!state.email) errors.push({ name: 'email', message: 'Required' })
   if (!state.password) errors.push({ name: 'password', message: 'Required' })
+  if (!state.gender) errors.push({ name: 'gender', message: 'Required' })
   return errors
 }
 
 const toast = useToast()
 async function onSubmit(event: FormSubmitEvent<Schema>) {
-  toast.add({ title: 'Success', description: 'The form has been submitted.', color: 'success' })
-  console.log(event.data)
+  if (isSubmitting.value)
+    return
+
+  isSubmitting.value = true
+  isStudentModalOpen.value = false
+
+  try {
+    await $fetch('https://noteworthy-z9k0.onrender.com/api/admin/student', {
+      method: 'POST',
+      headers: {
+        Authorization: `${useAuthToken().value}`,
+      },
+      body: {
+        firstName: state.firstName,
+        lastName: state.lastName,
+        email: state.email,
+        password: state.password,
+        gender: state.gender,
+      },
+    })
+
+    toast.add({
+      title: 'Success',
+      description: 'Student created successfully.',
+      color: 'success',
+    })
+
+    // Reset form fields
+    state.firstName = ''
+    state.lastName = ''
+    state.email = ''
+    state.password = ''
+    state.gender = ''
+
+    // Refresh students list
+    await refreshNuxtData('students')
+  } catch (error) {
+    console.error('Error creating student:', error)
+    toast.add({
+      title: 'Error',
+      description: 'Failed to create student.',
+      color: 'error',
+    })
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 const SAAB = ref(['Male', 'Female'])
@@ -219,24 +272,30 @@ const SAAB = ref(['Male', 'Female'])
       <div class="flex items-center gap-4 mb-4">
         <div class="text-lg font-bold">Students</div>
         <div style="margin-left: auto">
-          <UInput :model-value="table?.tableApi?.getColumn('name')?.getFilterValue() as string" class="max-w-sm mr-5"
+          <UInput
+            :model-value="table?.tableApi?.getColumn('name')?.getFilterValue() as string"
+            class="max-w-sm mr-5"
             placeholder="Search students..."
-            @update:model-value="table?.tableApi?.getColumn('name')?.setFilterValue($event)" />
+            @update:model-value="table?.tableApi?.getColumn('name')?.setFilterValue($event)"
+          />
 
-          <UModal :dismissible="false" title="Add New Student">
+          <UButton
+            label="Add New Student"
+            :loading="isSubmitting"
+            :disabled="isSubmitting"
+            @click="isStudentModalOpen = true"
+          />
 
-            <UButton label="Add New Student" />
-
+          <UModal v-model:open="isStudentModalOpen" :dismissible="!isSubmitting" title="Add New Student">
             <template #body>
               <UForm :validate="validate" :state="state" class="space-y-4" @submit="onSubmit">
-                <UFormField label="First Name" name="firstname" required block>
-                  <UInput placeholder="Juan" class="w-full" />
+                <UFormField label="First Name" name="firstName" required block>
+                  <UInput v-model="state.firstName" placeholder="Juan" class="w-full" />
                 </UFormField>
 
-                <UFormField label="Last Name" name="lastname" required block>
-                  <UInput placeholder="Dela Cruz" class="w-full" />
+                <UFormField label="Last Name" name="lastName" required block>
+                  <UInput v-model="state.lastName" placeholder="Dela Cruz" class="w-full" />
                 </UFormField>
-
 
                 <UFormField label="Email Address" name="email" required block>
                   <UInput v-model="state.email" placeholder="user@email.com" class="w-full" />
@@ -245,16 +304,16 @@ const SAAB = ref(['Male', 'Female'])
                 <UFormField label="Password" name="password" required>
                   <UInput v-model="state.password" type="password" placeholder="password" class="w-full" />
                 </UFormField>
-                <UFormField label="Sex assigned at birth" name="SAAB" required>
-                  <USelect placeholder="Select sex" :items="SAAB" class="w-full" />
+
+                <UFormField label="Sex assigned at birth" name="gender" required>
+                  <USelect v-model="state.gender" placeholder="Select sex" :items="SAAB" class="w-full" />
                 </UFormField>
 
-                <UButton type="submit" block>
+                <UButton type="submit" block :loading="isSubmitting" :disabled="isSubmitting">
                   Add Student
                 </UButton>
               </UForm>
             </template>
-
           </UModal>
 
         </div>
