@@ -28,6 +28,7 @@ type Journal = {
   _id: string
   title: string
   description: string
+  startDate: string
   endDate: string
 }
 
@@ -173,6 +174,7 @@ const { data: studentJournals, status: studentJournalsStatus } = await useAsyncD
         return {
           _id: journal._id,
           title: journal.title,
+          startDate: assignment.startDate,
           endDate: assignment.endDate, // due date
           description: journal.description,
         };
@@ -277,14 +279,22 @@ const journalcolumns: TableColumn<Journal>[] = [
   },
   {
     accessorKey: 'endDate',
-    header: 'Date',
+    header: 'Schedule',
     cell: ({ row }) => {
-      const dateValue = row.getValue('endDate') as string
-      if (!dateValue) return ''
-      const date = new Date(dateValue)
-      // Format to something like: "Oct 10, 2026, 20:15"
-      const formattedDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false }).format(date)
-      return `Due: ${formattedDate}`
+      const startDateValue = row.original.startDate as string
+      const endDateValue = row.original.endDate as string
+
+      const formatDate = (dateString: string | undefined) => {
+        if (!dateString) return 'N/A'
+        const date = new Date(dateString)
+        return new Intl.DateTimeFormat('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }).format(date)
+      }
+
+      return `${formatDate(startDateValue)} - ${formatDate(endDateValue)}`
     }
   },
   {
@@ -311,23 +321,10 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
   {
     accessorKey: 'title',
     header: 'Title',
-    cell: ({ row }) => h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
-  },
-  {
-    accessorKey: 'createdAt',
-    header: 'Date',
-    cell: ({ row }) => {
-      const dateValue = row.getValue('createdAt') as string
-      if (!dateValue) return ''
-      const date = new Date(dateValue)
-      // Format to something like: "Oct 10, 2026, 20:15"
-      const formattedDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false }).format(date)
-      return `Created: ${formattedDate}`
-    }
-  },
-  {
-    id: 'expand',
-    cell: ({ row }) =>
+    cell: ({ row }) => h('div', { class: 'flex items-center justify-between w-full' }, [
+      // The NuxtLink for the title
+      h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') }),
+      // The expand button
       h(UButton, {
         color: 'neutral',
         variant: 'ghost',
@@ -342,6 +339,7 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
         },
         onClick: () => row.toggleExpanded()
       })
+    ])
   },
 ]
 
