@@ -59,6 +59,90 @@ const { data: teacher, status } = await useAsyncData<TeacherDetail>(
   }
 )
 
+// Fetch all sections (same endpoint as profile-student) for Assign Section dropdown
+type SectionOption = { _id: string; name: string }
+const { data: allSections } = await useAsyncData<SectionOption[]>(
+  'all-sections',
+  () => $fetch(`${API_BASE}/api/admin/sections`, {
+    headers: { Authorization: `${useAuthToken().value}` }
+  }),
+  {
+    transform: (response: any) => {
+      const sectionData = response?.data ?? response?.sections ?? response
+      const rows = Array.isArray(sectionData) ? sectionData : []
+      return rows.map((s: any) => ({ _id: s._id, name: s.name }))
+    }
+  }
+)
+
+// Assign teacher to section (teacher can have multiple sections)
+const isAssignSectionOpen = ref(false)
+const assignSectionSelectedId = ref<string | undefined>(undefined)
+const isAssignSectionSubmitting = ref(false)
+
+function openAssignSectionModal() {
+  isAssignSectionOpen.value = true
+  assignSectionSelectedId.value = undefined
+}
+
+const assignSectionDropdownItems = computed(() =>
+  (allSections.value ?? []).map((s) => ({ label: s.name, value: s._id }))
+)
+
+async function confirmAssignSection() {
+  if (!teacherId.value || !assignSectionSelectedId.value || isAssignSectionSubmitting.value) return
+  isAssignSectionSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/sections/${assignSectionSelectedId.value}/assign-teacher/${teacherId.value}`, {
+      method: 'POST',
+      headers: { Authorization: `${useAuthToken().value}` }
+    })
+    toast.add({ title: 'Success', description: 'Teacher assigned to section.', color: 'success' })
+    isAssignSectionOpen.value = false
+    assignSectionSelectedId.value = undefined
+    await refreshNuxtData(`teacher-${teacherId.value}`)
+  } catch (error) {
+    console.error('Error assigning teacher to section', error)
+    toast.add({ title: 'Error', description: 'Failed to assign teacher to section.', color: 'error' })
+  } finally {
+    isAssignSectionSubmitting.value = false
+  }
+}
+
+// Unassign teacher from section
+const sectionToUnassign = ref<SectionInfo | null>(null)
+const isUnassignSectionOpen = ref(false)
+const isUnassignSectionSubmitting = ref(false)
+
+function openUnassignSectionConfirm(section: SectionInfo) {
+  sectionToUnassign.value = section
+  isUnassignSectionOpen.value = true
+}
+
+function closeUnassignSectionConfirm() {
+  isUnassignSectionOpen.value = false
+  sectionToUnassign.value = null
+}
+
+async function confirmUnassignSection() {
+  if (!teacherId.value || !sectionToUnassign.value || isUnassignSectionSubmitting.value) return
+  isUnassignSectionSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/sections/${sectionToUnassign.value._id}/unassign-teacher/${teacherId.value}`, {
+      method: 'PATCH',
+      headers: { Authorization: `${useAuthToken().value}` }
+    })
+    toast.add({ title: 'Success', description: 'Teacher removed from section.', color: 'success' })
+    closeUnassignSectionConfirm()
+    await refreshNuxtData(`teacher-${teacherId.value}`)
+  } catch (error) {
+    console.error('Error unassigning teacher from section', error)
+    toast.add({ title: 'Error', description: 'Failed to remove teacher from section.', color: 'error' })
+  } finally {
+    isUnassignSectionSubmitting.value = false
+  }
+}
+
 // EDIT / DELETE TEACHER
 const isEditOpen = ref(false)
 const isDeleteOpen = ref(false)
@@ -173,7 +257,6 @@ async function onDeleteTeacher() {
                 />
                 <UButton
                   icon="i-lucide-trash"
-                  color="red"
                   variant="ghost"
                   aria-label="Delete teacher"
                   @click="isDeleteOpen = true"
@@ -184,18 +267,39 @@ async function onDeleteTeacher() {
         </div>
       </UPageCard>
 
-      <UPageCard class="mt-8" v-if="teacher.assignedSections && teacher.assignedSections.length > 0">
+      <UPageCard class="mt-8">
         <template #header>
-          <h3 class="text-lg font-semibold">Assigned Sections</h3>
+          <div class="flex items-center justify-between w-full">
+            <h3 class="text-lg font-semibold">Assigned Sections</h3>
+            <UButton
+              label="Assign New Section"
+              icon="i-lucide-folder-plus"
+              variant="outline"
+              @click="openAssignSectionModal"
+            />
+          </div>
         </template>
 
-        <div class="space-y-2">
-          <div v-for="section in teacher.assignedSections" :key="section._id">
+        <div v-if="teacher.assignedSections && teacher.assignedSections.length > 0" class="space-y-2">
+          <div
+            v-for="section in teacher.assignedSections"
+            :key="section._id"
+            class="flex items-center justify-between gap-2 py-1"
+          >
             <NuxtLink :to="`/profile-section?id=${section._id}`" class="text-primary font-medium hover:underline">
               {{ section.name }}
             </NuxtLink>
+            <UButton
+              icon="i-lucide-trash"
+              color="error"
+              variant="ghost"
+              square
+              aria-label="Unassign teacher from section"
+              @click="openUnassignSectionConfirm(section)"
+            />
           </div>
         </div>
+        <p v-else class="text-gray-500 dark:text-gray-400">No sections assigned.</p>
       </UPageCard>
 
       <!-- Edit Teacher Modal -->
@@ -263,12 +367,86 @@ async function onDeleteTeacher() {
               Cancel
             </UButton>
             <UButton
-              color="red"
+              color="error"
               :loading="isDeleteSubmitting"
               :disabled="isDeleteSubmitting"
               @click="onDeleteTeacher"
             >
               Delete
+            </UButton>
+          </div>
+        </template>
+      </UModal>
+
+      <!-- Assign Section Modal -->
+      <UModal v-model:open="isAssignSectionOpen" :dismissible="!isAssignSectionSubmitting">
+        <template #header>
+          <div class="flex items-center justify-between w-full">
+            <h3 class="text-lg font-semibold">Assign Teacher to Section</h3>
+            <UButton
+              icon="i-lucide-x"
+              variant="ghost"
+              :disabled="isAssignSectionSubmitting"
+              @click="isAssignSectionOpen = false"
+            />
+          </div>
+        </template>
+        <template #body>
+          <form class="space-y-4" @submit.prevent="confirmAssignSection">
+            <UFormField label="Section" name="sectionId" required block>
+              <USelect
+                v-model="assignSectionSelectedId"
+                :items="assignSectionDropdownItems"
+                placeholder="Select a section"
+                class="w-full"
+              />
+            </UFormField>
+            <div class="flex justify-end gap-2">
+              <UButton
+                type="button"
+                variant="outline"
+                :disabled="isAssignSectionSubmitting"
+                @click="isAssignSectionOpen = false"
+              >
+                Cancel
+              </UButton>
+              <UButton
+                type="submit"
+                :loading="isAssignSectionSubmitting"
+                :disabled="!assignSectionSelectedId || isAssignSectionSubmitting"
+              >
+                Assign Section
+              </UButton>
+            </div>
+          </form>
+        </template>
+      </UModal>
+
+      <!-- Unassign Section Confirmation Modal -->
+      <UModal v-model:open="isUnassignSectionOpen" :dismissible="!isUnassignSectionSubmitting">
+        <template #header>
+          <h3 class="text-lg font-semibold">Remove teacher from section</h3>
+        </template>
+        <template #body>
+          <p v-if="sectionToUnassign">
+            Are you sure you want to remove this teacher from {{ sectionToUnassign.name }}?
+          </p>
+          <div class="flex justify-end gap-2 mt-6">
+            <UButton
+              type="button"
+              variant="outline"
+              :disabled="isUnassignSectionSubmitting"
+              @click="closeUnassignSectionConfirm"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="error"
+              :loading="isUnassignSectionSubmitting"
+              :disabled="isUnassignSectionSubmitting"
+              @click="confirmUnassignSection"
+            >
+              Remove
             </UButton>
           </div>
         </template>
