@@ -496,7 +496,7 @@ async function onDeleteStudent() {
                 />
                 <UButton
                   icon="i-lucide-trash"
-                  color="red"
+                  color="error"
                   variant="ghost"
                   aria-label="Delete student"
                   @click="isDeleteOpen = true"
@@ -688,7 +688,7 @@ async function onDeleteStudent() {
               Cancel
             </UButton>
             <UButton
-              color="red"
+              color="error"
               :loading="isDeleteSubmitting"
               :disabled="isDeleteSubmitting"
               @click="onDeleteStudent"

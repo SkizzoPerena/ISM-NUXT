@@ -126,8 +126,8 @@ type Schema = typeof state
 
 function validate(state: Partial<Schema>): FormError[] {
   const errors = []
-  if (!state.title) errors.push({ name: 'title', message: 'Required' })
-  if (!state.description) errors.push({ name: 'description', message: 'Required' })
+  if (!state.title) errors.push({ path: 'title', message: 'Required' })
+  if (!state.description) errors.push({ path: 'description', message: 'Required' })
   return errors
 }
 
