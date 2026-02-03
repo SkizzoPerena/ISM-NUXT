@@ -184,18 +184,37 @@ async function onDeleteTeacher() {
         </div>
       </UPageCard>
 
-      <UPageCard class="mt-8" v-if="teacher.assignedSections && teacher.assignedSections.length > 0">
+      <UPageCard class="mt-8">
         <template #header>
-          <h3 class="text-lg font-semibold">Assigned Sections</h3>
+          <div class="flex items-center justify-between w-full">
+            <h3 class="text-lg font-semibold">Assigned Sections</h3>
+            <UButton
+              label="Assign New Section"
+              icon="i-lucide-folder-plus"
+              variant="outline"
+            />
+          </div>
         </template>
 
-        <div class="space-y-2">
-          <div v-for="section in teacher.assignedSections" :key="section._id">
+        <div v-if="teacher.assignedSections && teacher.assignedSections.length > 0" class="space-y-2">
+          <div
+            v-for="section in teacher.assignedSections"
+            :key="section._id"
+            class="flex items-center justify-between gap-2 py-1"
+          >
             <NuxtLink :to="`/profile-section?id=${section._id}`" class="text-primary font-medium hover:underline">
               {{ section.name }}
             </NuxtLink>
+            <UButton
+              icon="i-lucide-trash"
+              color="error"
+              variant="ghost"
+              square
+              aria-label="Unassign teacher from section"
+            />
           </div>
         </div>
+        <p v-else class="text-gray-500 dark:text-gray-400">No sections assigned.</p>
       </UPageCard>
 
       <!-- Edit Teacher Modal -->
