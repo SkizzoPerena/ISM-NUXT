@@ -89,27 +89,44 @@ const globalFilter = ref('')
 
 // FORM SCRIPT 
 
+const isOpen = ref(false)
+
 const state = reactive({
-  email: undefined,
-  password: undefined
+  sectionName: undefined
 })
 
 type Schema = typeof state
 
 function validate(state: Partial<Schema>): FormError[] {
   const errors = []
-  if (!state.email) errors.push({ name: 'email', message: 'Required' })
-  if (!state.password) errors.push({ name: 'password', message: 'Required' })
+  if (!state.sectionName) errors.push({ name: 'sectionName', message: 'Required' })
   return errors
 }
 
 const toast = useToast()
 async function onSubmit(event: FormSubmitEvent<Schema>) {
-  toast.add({ title: 'Success', description: 'The form has been submitted.', color: 'success' })
-  console.log(event.data)
+  try {
+    await $fetch('https://noteworthy-z9k0.onrender.com/api/admin/sections', {
+      method: 'POST',
+      headers: {
+        Authorization: `${useAuthToken().value}`
+      },
+      body: {
+        name: state.sectionName
+      }
+    })
+    
+    toast.add({ title: 'Success', description: 'Section created successfully.', color: 'success' })
+    isOpen.value = false
+    state.sectionName = undefined
+    
+    // Refresh the sections list
+    await refreshNuxtData('sections')
+  } catch (error) {
+    console.error('Error creating section:', error)
+    toast.add({ title: 'Error', description: 'Failed to create section.', color: 'error' })
+  }
 }
-
-const SAAB = ref(['Male', 'Female'])
 
 // END FORM SCRIPT
 </script>
@@ -125,38 +142,32 @@ const SAAB = ref(['Male', 'Female'])
             placeholder="Search sections..."
             />
 
-          <UModal :dismissible="false" title="Add New Section">
+          <UButton label="Add New Section" @click="isOpen = true" />
 
-            <UButton label="Add New Section" />
+          <UModal v-model:open="isOpen" :dismissible="false">
+            <template #header>
+              <div class="flex items-center justify-between w-full">
+                <h3 class="text-lg font-semibold">Add New Section</h3>
+                <UButton icon="i-lucide-x" variant="ghost" @click="isOpen = false" />
+              </div>
+            </template>
 
             <template #body>
               <UForm :validate="validate" :state="state" class="space-y-4" @submit="onSubmit">
-                <UFormField label="First Name" name="firstname" required block>
-                  <UInput placeholder="Juan" class="w-full" />
+                <UFormField label="Section Name" name="sectionName" required block>
+                  <UInput v-model="state.sectionName" placeholder="Enter section name" class="w-full" />
                 </UFormField>
 
-                <UFormField label="Last Name" name="lastname" required block>
-                  <UInput placeholder="Dela Cruz" class="w-full" />
-                </UFormField>
-
-
-                <UFormField label="Email Address" name="email" required block>
-                  <UInput v-model="state.email" placeholder="user@email.com" class="w-full" />
-                </UFormField>
-
-                <UFormField label="Password" name="password" required>
-                  <UInput v-model="state.password" type="password" placeholder="password" class="w-full" />
-                </UFormField>
-                <UFormField label="Sex assigned at birth" name="SAAB" required>
-                  <USelect placeholder="Select sex" :items="SAAB" class="w-full" />
-                </UFormField>
-
-                <UButton type="submit" block>
-                  Add section
-                </UButton>
+                <div class="flex gap-2 justify-end">
+                  <UButton type="button" variant="outline" @click="isOpen = false">
+                    Cancel
+                  </UButton>
+                  <UButton type="submit">
+                    Create Section
+                  </UButton>
+                </div>
               </UForm>
             </template>
-
           </UModal>
 
         </div>
