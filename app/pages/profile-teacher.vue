@@ -172,7 +172,7 @@ async function onDeleteTeacher() {
                   @click="openEditModal"
                 />
                 <UButton
-                  icon="i-lucide-trash"
+                  icon="i-lucide-trash-2"
                   color="error"
                   variant="ghost"
                   aria-label="Delete teacher"
@@ -191,7 +191,7 @@ async function onDeleteTeacher() {
             <UButton
               label="Assign New Section"
               icon="i-lucide-folder-plus"
-              variant="outline"
+              variant="subtle"
             />
           </div>
         </template>
@@ -206,7 +206,7 @@ async function onDeleteTeacher() {
               {{ section.name }}
             </NuxtLink>
             <UButton
-              icon="i-lucide-trash"
+              icon="i-lucide-trash-2"
               color="error"
               variant="ghost"
               square

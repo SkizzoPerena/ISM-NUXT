@@ -300,7 +300,7 @@ async function onDeleteGuardian() {
                   @click="openEditModal"
                 />
                 <UButton
-                  icon="i-lucide-trash"            
+                  icon="i-lucide-trash-2"            
                   variant="ghost"
                   aria-label="Delete guardian"
                   @click="isDeleteOpen = true"
@@ -335,7 +335,7 @@ async function onDeleteGuardian() {
               <span v-if="student.gender" class="text-gray-500 dark:text-gray-400 text-sm">{{ student.gender }}</span>
             </div>
             <UButton
-              icon="i-lucide-trash"
+              icon="i-lucide-trash-2"
               variant="ghost"
               aria-label="Remove student from guardian"
               class="ml-auto shrink-0"

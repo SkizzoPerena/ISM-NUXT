@@ -767,7 +767,7 @@ async function onDeleteStudent() {
                   @click="openEditModal"
                 />
                 <UButton
-                  icon="i-lucide-trash"
+                  icon="i-lucide-trash-2"
                   color="error"
                   variant="ghost"
                   aria-label="Delete student"
@@ -795,7 +795,7 @@ async function onDeleteStudent() {
                         {{ section.name }}
                       </NuxtLink>
                       <UButton
-                        icon="i-lucide-trash"
+                        icon="i-lucide-trash-2"
                         variant="ghost"
                         aria-label="Remove section from student"
                         class="ml-auto shrink-0"
