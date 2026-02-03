@@ -7,6 +7,8 @@ definePageMeta({
   layout: 'dashboard',
 })
 
+const API_BASE = 'https://noteworthy-z9k0.onrender.com'
+
 const UButton = resolveComponent('UButton')
 const NuxtLink = resolveComponent('NuxtLink')
 
@@ -24,11 +26,13 @@ type InstrumentInfo = {
   proficiency: string
 }
 
-type Journal = {
-  _id: string
-  title: string
-  description: string
-  endDate: string
+type JournalEntry = {
+  _id?: string
+  journalSection?: { journalId?: { _id: string; title?: string } }
+  submittedAt?: string
+  createdAt?: string
+  updatedAt?: string
+  [key: string]: unknown
 }
 
 type Assessment = {
@@ -36,6 +40,22 @@ type Assessment = {
   title: string
   instructions: string
   createdAt: string
+}
+
+type SpecialSubmission = {
+  _id?: string
+  submissionURL?: string
+  submissionType?: string
+  assessmentStudent?: { assessmentId?: { title?: string; instructions?: string } }
+  [key: string]: unknown
+}
+
+type IndividualSubmission = {
+  _id?: string
+  submissionURL?: string
+  submissionType?: string
+  assessmentSection?: { assessmentId?: { title?: string; instructions?: string } }
+  [key: string]: unknown
 }
 
 type GuardianInfo = {
@@ -134,54 +154,6 @@ const { data: instruments, status: instrumentsStatus } = await useAsyncData<Inst
   }
 )
 
-// Fetch all assigned journals from all sections the student is in
-const { data: studentJournals, status: studentJournalsStatus } = await useAsyncData<Journal[]>(
-  `student-journals-${studentId.value}`,
-  async () => {
-    if (!student.value?.assignedSections?.length) {
-      return [];
-    }
-
-    // Create a fetch promise for each section
-    const journalPromises = student.value.assignedSections.map(section =>
-      $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/journal-sections/section/${section._id}`, {
-        headers: { Authorization: `${useAuthToken().value}` }
-      })
-    );
-
-    // Wait for all fetches to complete
-    const sectionJournalsResponses = await Promise.all(journalPromises);
-
-    // Combine assignments from all sections into a single array
-    const allAssignments = sectionJournalsResponses.flatMap((response: any) => response.assignments || []);
-
-    // Deduplicate journals using a Map, in case a journal is assigned in multiple sections
-    const uniqueJournals = new Map<string, any>();
-    for (const assignment of allAssignments) {
-      if (assignment.journalId && !uniqueJournals.has(assignment.journalId._id)) {
-        uniqueJournals.set(assignment.journalId._id, assignment);
-      }
-    }
-
-    return Array.from(uniqueJournals.values());
-  },
-  {
-    transform: (assignments: any[]): Journal[] => {
-      return assignments.map(assignment => {
-        const journal = assignment.journalId;
-        if (!journal) return null;
-        return {
-          _id: journal._id,
-          title: journal.title,
-          endDate: assignment.endDate, // due date
-          description: journal.description,
-        };
-      }).filter((j): j is Journal => j !== null);
-    },
-    watch: [student] // Re-run if student data changes
-  }
-);
-
 // Fetch assigned assessments for the student
 const { data: studentAssessments, status: studentAssessmentsStatus } = await useAsyncData<Assessment[]>(
   `student-assessments-${studentId.value}`,
@@ -216,6 +188,99 @@ const { data: studentAssessments, status: studentAssessmentsStatus } = await use
           instructions: assessment.instructions,
         };
       }).filter((a): a is Assessment => a !== null);
+    },
+    watch: [studentId]
+  }
+);
+
+// Fetch special submissions for the student
+const { data: specialSubmissionsRaw, status: specialSubmissionsStatus } = await useAsyncData<SpecialSubmission[]>(
+  `student-special-submissions-${studentId.value}`,
+  () => $fetch(`${API_BASE}/api/admin/special-submission/student/${studentId.value}`, {
+    headers: {
+      Authorization: `${useAuthToken().value}`
+    },
+    onResponse({ response }) {
+      console.log('Special Submissions API Response:', response._data)
+    }
+  }),
+  {
+    transform: (response: any): SpecialSubmission[] => {
+      const list = response?.specialAssessmentSubmissions ?? response?.data ?? response?.specialSubmissions ?? response?.submissions ?? response
+      return Array.isArray(list) ? list : []
+    },
+    watch: [studentId]
+  }
+);
+
+// Pending: submissionURL is empty AND submissionType is not equal to "LIVE" (same logic as profile-section.vue)
+function isPendingSpecialSubmission(entry: SpecialSubmission): boolean {
+  const urlEmpty = !entry.submissionURL || String(entry.submissionURL).trim() === ''
+  const notLive = entry.submissionType !== 'LIVE'
+  return urlEmpty && notLive
+}
+
+const pendingSpecialSubmissions = computed(() => {
+  const list = specialSubmissionsRaw.value ?? []
+  return list.filter(isPendingSpecialSubmission)
+})
+
+const submittedSpecialSubmissions = computed(() => {
+  const list = specialSubmissionsRaw.value ?? []
+  return list.filter((entry) => !isPendingSpecialSubmission(entry))
+})
+
+// Fetch individual submissions for the student
+const { data: individualSubmissionsRaw, status: individualSubmissionsStatus } = await useAsyncData<IndividualSubmission[]>(
+  `student-individual-submissions-${studentId.value}`,
+  () => $fetch(`${API_BASE}/api/admin/individual-submission/student/${studentId.value}`, {
+    headers: {
+      Authorization: `${useAuthToken().value}`
+    },
+    onResponse({ response }) {
+      console.log('Individual Submissions API Response:', response._data)
+    }
+  }),
+  {
+    transform: (response: any): IndividualSubmission[] => {
+      const list = response?.individualAssessmentSubmissions ?? response?.data ?? response?.individualSubmissions ?? response?.submissions ?? response
+      return Array.isArray(list) ? list : []
+    },
+    watch: [studentId]
+  }
+)
+
+function isPendingIndividualSubmission(entry: IndividualSubmission): boolean {
+  const urlEmpty = !entry.submissionURL || String(entry.submissionURL).trim() === ''
+  const notLive = entry.submissionType !== 'LIVE'
+  return urlEmpty && notLive
+}
+
+const pendingIndividualSubmissions = computed(() => {
+  const list = individualSubmissionsRaw.value ?? []
+  return list.filter(isPendingIndividualSubmission)
+})
+
+const submittedIndividualSubmissions = computed(() => {
+  const list = individualSubmissionsRaw.value ?? []
+  return list.filter((entry) => !isPendingIndividualSubmission(entry))
+})
+
+// Fetch all answered practice journal entries for the student
+const { data: journalEntries, status: journalEntriesStatus } = await useAsyncData<JournalEntry[]>(
+  `student-journal-entries-${studentId.value}`,
+  () => $fetch(`${API_BASE}/api/admin/journal-entry/student/${studentId.value}`, {
+    headers: {
+      Authorization: `${useAuthToken().value}`
+    },
+    onResponse({ response }) {
+      console.log('Journal Entries API Response:', response._data)
+    }
+  }),
+  {
+    transform: (response: any): JournalEntry[] => {
+      const list = response?.data ?? response?.journalEntries ?? response?.entries ?? response
+      return Array.isArray(list) ? list : []
     },
     watch: [studentId]
   }
@@ -260,50 +325,34 @@ const items = [
   },
   {
     label: 'Journals',
-    description: 'Assigned practice journals.',
+    description: 'Practice journals.',
     icon: 'i-lucide-notebook-pen',
     slot: 'journals' as const
   },
 ] satisfies TabsItem[]
 
-const journalsExpanded = ref({})
+const journalEntriesExpanded = ref({})
 const assessmentsExpanded = ref({})
+const submittedSpecialExpanded = ref({})
+const pendingSpecialExpanded = ref({})
+const submittedIndividualExpanded = ref({})
+const pendingIndividualExpanded = ref({})
 
-const journalcolumns: TableColumn<Journal>[] = [
+const journalEntryColumns: TableColumn<JournalEntry>[] = [
   {
-    accessorKey: 'title',
-    header: 'Title',
-    cell: ({ row }) => h(NuxtLink, { to: `/details-journal?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
+    accessorKey: 'journalSection',
+    header: 'Journal Title',
+    cell: ({ row }) => row.original.journalSection?.journalId?.title ?? '—'
   },
   {
-    accessorKey: 'endDate',
-    header: 'Date',
+    accessorKey: 'updatedAt',
+    header: 'Date Last Modified',
     cell: ({ row }) => {
-      const dateValue = row.getValue('endDate') as string
-      if (!dateValue) return ''
+      const dateValue = row.original.updatedAt ?? row.original.submittedAt ?? row.original.createdAt
+      if (!dateValue) return '—'
       const date = new Date(dateValue)
-      // Format to something like: "Oct 10, 2026, 20:15"
-      const formattedDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false }).format(date)
-      return `Due: ${formattedDate}`
+      return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false }).format(date)
     }
-  },
-  {
-    id: 'expand',
-    cell: ({ row }) =>
-      h(UButton, {
-        color: 'neutral',
-        variant: 'ghost',
-        icon: 'i-lucide-chevron-down',
-        square: true,
-        'aria-label': 'Expand',
-        ui: {
-          leadingIcon: [
-            'transition-transform',
-            row.getIsExpanded() ? 'duration-200 rotate-180' : ''
-          ]
-        },
-        onClick: () => row.toggleExpanded()
-      })
   },
 ]
 
@@ -327,6 +376,152 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
   },
   {
     id: 'expand',
+    cell: ({ row }) =>
+      h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        icon: 'i-lucide-chevron-down',
+        square: true,
+        'aria-label': 'Expand',
+        ui: {
+          leadingIcon: [
+            'transition-transform',
+            row.getIsExpanded() ? 'duration-200 rotate-180' : ''
+          ]
+        },
+        onClick: () => row.toggleExpanded()
+      })
+  },
+]
+
+// Special submissions – pending: Title + expand only; submitted: Title + Upload Type + expand
+const specialSubmissionColumns: TableColumn<SpecialSubmission>[] = [
+  {
+    accessorKey: 'assessmentStudent',
+    header: 'Assessment Title',
+    meta: { class: { th: 'min-w-[180px]', td: 'min-w-[180px]' } },
+    cell: ({ row }) => row.original.assessmentStudent?.assessmentId?.title ?? '—'
+  },
+  {
+    id: 'expand',
+    meta: { class: { th: 'w-12', td: 'w-12' } },
+    cell: ({ row }) =>
+      h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        icon: 'i-lucide-chevron-down',
+        square: true,
+        'aria-label': 'Expand',
+        ui: {
+          leadingIcon: [
+            'transition-transform',
+            row.getIsExpanded() ? 'duration-200 rotate-180' : ''
+          ]
+        },
+        onClick: () => row.toggleExpanded()
+      })
+  },
+]
+
+const submittedSpecialSubmissionColumns: TableColumn<SpecialSubmission>[] = [
+  {
+    accessorKey: 'assessmentStudent',
+    header: 'Assessment Title',
+    meta: { class: { th: 'min-w-[140px] max-w-[200px]', td: 'min-w-[140px] max-w-[200px]' } },
+    cell: ({ row }) => row.original.assessmentStudent?.assessmentId?.title ?? '—'
+  },
+  {
+    accessorKey: 'submissionURL',
+    header: 'Submission URL',
+    meta: { class: { th: 'min-w-[120px]', td: 'min-w-[120px]' } },
+    cell: ({ row }) => {
+      const url = row.original.submissionURL
+      if (!url || String(url).trim() === '') return h('span', { class: 'text-gray-500 dark:text-gray-400 italic' }, '—')
+      return h('a', { href: url, target: '_blank', rel: 'noopener noreferrer', class: 'text-primary hover:underline break-all' }, url)
+    }
+  },
+  {
+    accessorKey: 'submissionType',
+    header: 'Upload Type',
+    meta: { class: { th: 'w-24 min-w-[80px]', td: 'w-24 min-w-[80px]' } },
+    cell: ({ row }) => row.original.submissionType ?? '—'
+  },
+  {
+    id: 'expand',
+    meta: { class: { th: 'w-12', td: 'w-12' } },
+    cell: ({ row }) =>
+      h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        icon: 'i-lucide-chevron-down',
+        square: true,
+        'aria-label': 'Expand',
+        ui: {
+          leadingIcon: [
+            'transition-transform',
+            row.getIsExpanded() ? 'duration-200 rotate-180' : ''
+          ]
+        },
+        onClick: () => row.toggleExpanded()
+      })
+  },
+]
+
+// Individual submissions – submitted: Title + Submission URL + Upload Type + expand; pending: Title + expand only
+const submittedIndividualSubmissionColumns: TableColumn<IndividualSubmission>[] = [
+  {
+    accessorKey: 'assessmentSection',
+    header: 'Assessment Title',
+    meta: { class: { th: 'min-w-[140px] max-w-[200px]', td: 'min-w-[140px] max-w-[200px]' } },
+    cell: ({ row }) => row.original.assessmentSection?.assessmentId?.title ?? '—'
+  },
+  {
+    accessorKey: 'submissionURL',
+    header: 'Submission URL',
+    meta: { class: { th: 'min-w-[120px]', td: 'min-w-[120px]' } },
+    cell: ({ row }) => {
+      const url = row.original.submissionURL
+      if (!url || String(url).trim() === '') return h('span', { class: 'text-gray-500 dark:text-gray-400 italic' }, '—')
+      return h('a', { href: url, target: '_blank', rel: 'noopener noreferrer', class: 'text-primary hover:underline break-all' }, url)
+    }
+  },
+  {
+    accessorKey: 'submissionType',
+    header: 'Upload Type',
+    meta: { class: { th: 'w-24 min-w-[80px]', td: 'w-24 min-w-[80px]' } },
+    cell: ({ row }) => row.original.submissionType ?? '—'
+  },
+  {
+    id: 'expand',
+    meta: { class: { th: 'w-12', td: 'w-12' } },
+    cell: ({ row }) =>
+      h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        icon: 'i-lucide-chevron-down',
+        square: true,
+        'aria-label': 'Expand',
+        ui: {
+          leadingIcon: [
+            'transition-transform',
+            row.getIsExpanded() ? 'duration-200 rotate-180' : ''
+          ]
+        },
+        onClick: () => row.toggleExpanded()
+      })
+  },
+]
+
+const pendingIndividualSubmissionColumns: TableColumn<IndividualSubmission>[] = [
+  {
+    accessorKey: 'assessmentSection',
+    header: 'Assessment Title',
+    meta: { class: { th: 'min-w-[180px]', td: 'min-w-[180px]' } },
+    cell: ({ row }) => row.original.assessmentSection?.assessmentId?.title ?? '—'
+  },
+  {
+    id: 'expand',
+    meta: { class: { th: 'w-12', td: 'w-12' } },
     cell: ({ row }) =>
       h(UButton, {
         color: 'neutral',
@@ -578,7 +773,7 @@ async function onDeleteStudent() {
           <!-- ASSESSMENTS TAB -->
           <template #assessments="{ item }">
             <UContainer class="mt-5">
-              <div class="text-lg font-semibold" style="">Assigned Assessments</div>
+              <div class="text-lg font-semibold">Assigned Special Assessments</div>
 
               <UTable v-model:expanded="assessmentsExpanded" :data="studentAssessments || []" :columns="assessmentcolumns"
                 :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="studentAssessmentsStatus === 'pending'">
@@ -592,22 +787,109 @@ async function onDeleteStudent() {
                 </template>
               </UTable>
             </UContainer>
+
+            <UContainer class="mt-8">
+              <div class="text-lg font-semibold mb-2">Submitted Special Assessments ({{ submittedSpecialSubmissions.length }})</div>
+              <UTable
+                v-model:expanded="submittedSpecialExpanded"
+                :data="submittedSpecialSubmissions"
+                :columns="submittedSpecialSubmissionColumns"
+                :ui="{ tr: 'data-[expanded=true]:bg-elevated/50' }"
+                class="border-t border-default w-full table-fixed mt-4"
+                :loading="specialSubmissionsStatus === 'pending'"
+              >
+                <template #empty-state>
+                  <div class="flex flex-col items-center justify-center py-6 gap-3">
+                    <span class="italic text-sm">No submitted special assessments.</span>
+                  </div>
+                </template>
+                <template #expanded="{ row }">
+                  <p class="p-4">{{ row.original.assessmentStudent?.assessmentId?.instructions ?? '—' }}</p>
+                </template>
+              </UTable>
+            </UContainer>
+
+            <UContainer class="mt-8">
+              <div class="text-lg font-semibold mb-2">Pending Special Assessments ({{ pendingSpecialSubmissions.length }})</div>
+              <UTable
+                v-model:expanded="pendingSpecialExpanded"
+                :data="pendingSpecialSubmissions"
+                :columns="specialSubmissionColumns"
+                :ui="{ tr: 'data-[expanded=true]:bg-elevated/50' }"
+                class="border-t border-default w-full table-fixed mt-4"
+                :loading="specialSubmissionsStatus === 'pending'"
+              >
+                <template #empty-state>
+                  <div class="flex flex-col items-center justify-center py-6 gap-3">
+                    <span class="italic text-sm">No pending special assessments.</span>
+                  </div>
+                </template>
+                <template #expanded="{ row }">
+                  <p class="p-4">{{ row.original.assessmentStudent?.assessmentId?.instructions ?? '—' }}</p>
+                </template>
+              </UTable>
+            </UContainer>
+
+            <UContainer class="mt-8">
+              <div class="text-lg font-semibold mb-2">Submitted Individual Assessments ({{ submittedIndividualSubmissions.length }})</div>
+              <UTable
+                v-model:expanded="submittedIndividualExpanded"
+                :data="submittedIndividualSubmissions"
+                :columns="submittedIndividualSubmissionColumns"
+                :ui="{ tr: 'data-[expanded=true]:bg-elevated/50' }"
+                class="border-t border-default w-full table-fixed mt-4"
+                :loading="individualSubmissionsStatus === 'pending'"
+              >
+                <template #empty-state>
+                  <div class="flex flex-col items-center justify-center py-6 gap-3">
+                    <span class="italic text-sm">No submitted individual assessments.</span>
+                  </div>
+                </template>
+                <template #expanded="{ row }">
+                  <p class="p-4">{{ row.original.assessmentSection?.assessmentId?.instructions ?? '—' }}</p>
+                </template>
+              </UTable>
+            </UContainer>
+
+            <UContainer class="mt-8">
+              <div class="text-lg font-semibold mb-2">Pending Individual Assessments ({{ pendingIndividualSubmissions.length }})</div>
+              <UTable
+                v-model:expanded="pendingIndividualExpanded"
+                :data="pendingIndividualSubmissions"
+                :columns="pendingIndividualSubmissionColumns"
+                :ui="{ tr: 'data-[expanded=true]:bg-elevated/50' }"
+                class="border-t border-default w-full table-fixed mt-4"
+                :loading="individualSubmissionsStatus === 'pending'"
+              >
+                <template #empty-state>
+                  <div class="flex flex-col items-center justify-center py-6 gap-3">
+                    <span class="italic text-sm">No pending individual assessments.</span>
+                  </div>
+                </template>
+                <template #expanded="{ row }">
+                  <p class="p-4">{{ row.original.assessmentSection?.assessmentId?.instructions ?? '—' }}</p>
+                </template>
+              </UTable>
+            </UContainer>
           </template>
 
           <!-- JOURNALS TAB -->
           <template #journals="{ item }">
             <UContainer class="mt-5">
-              <div class="text-lg font-semibold" style="">Assigned Practice Journals</div>
+              <div class="text-lg font-semibold">Answered Practice Journals</div>
 
-              <UTable v-model:expanded="journalsExpanded" :data="studentJournals || []" :columns="journalcolumns"
-                :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="studentJournalsStatus === 'pending'">
+              <UTable
+                v-model:expanded="journalEntriesExpanded"
+                :data="journalEntries || []"
+                :columns="journalEntryColumns"
+                :ui="{ tr: 'data-[expanded=true]:bg-elevated/50' }"
+                class="flex-1 mt-4 border-t border-default"
+                :loading="journalEntriesStatus === 'pending'"
+              >
                 <template #empty-state>
                   <div class="flex flex-col items-center justify-center py-6 gap-3">
-                    <span class="italic text-sm">No journals assigned to this student.</span>
+                    <span class="italic text-sm">No answered journal entries yet.</span>
                   </div>
-                </template>
-                <template #expanded="{ row }">
-                  <p class="p-4">{{ row.original.description }}</p>
                 </template>
               </UTable>
             </UContainer>
