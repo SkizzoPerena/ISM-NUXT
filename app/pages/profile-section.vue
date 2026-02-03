@@ -306,6 +306,19 @@ const columns: TableColumn<any>[] = [
     header: 'Gender',
     cell: ({ row }) => row.original.gender ?? '—'
   },
+  {
+    id: 'unassign',
+    header: '',
+    cell: ({ row }) =>
+      h(UButton, {
+        icon: 'i-lucide-trash',
+        color: 'red',
+        variant: 'ghost',
+        square: true,
+        'aria-label': 'Unassign student from section',
+        onClick: () => openUnassignStudentConfirm(row.original)
+      })
+  },
 ]
 
 const teacherData = computed(() => {
@@ -383,6 +396,89 @@ async function onSubmitEdit(event: FormSubmitEvent<EditSchema>) {
 }
 
 // END EDIT SECTION FORM
+
+// ADD STUDENT TO SECTION (sectionless students)
+const isAddStudentOpen = ref(false)
+const sectionlessStudents = ref<{ _id: string; firstName: string; lastName: string; email?: string }[]>([])
+const sectionlessStudentsLoading = ref(false)
+const addStudentSelectedId = ref<string | undefined>(undefined)
+const isAddStudentSubmitting = ref(false)
+
+function openAddStudentModal() {
+  isAddStudentOpen.value = true
+  addStudentSelectedId.value = undefined
+  sectionlessStudentsLoading.value = true
+  $fetch(`${API_BASE}/api/admin/student/sectionless/all`, {
+    headers: { Authorization: `${useAuthToken().value}` }
+  })
+    .then((data: any) => {
+      const list = data?.data ?? data?.students ?? data
+      sectionlessStudents.value = Array.isArray(list) ? list : []
+      sectionlessStudentsLoading.value = false
+    })
+    .catch(() => {
+      sectionlessStudentsLoading.value = false
+      toast.add({ title: 'Error', description: 'Failed to load sectionless students.', color: 'error' })
+    })
+}
+
+const addStudentDropdownItems = computed(() =>
+  sectionlessStudents.value.map((s) => ({ label: `${s.firstName} ${s.lastName}`, value: s._id }))
+)
+
+async function confirmAddStudent() {
+  if (!sectionId.value || !addStudentSelectedId.value || isAddStudentSubmitting.value) return
+  isAddStudentSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/sections/${sectionId.value}/assign-student/${addStudentSelectedId.value}`, {
+      method: 'POST',
+      headers: { Authorization: `${useAuthToken().value}` }
+    })
+    toast.add({ title: 'Success', description: 'Student added to section.', color: 'success' })
+    isAddStudentOpen.value = false
+    addStudentSelectedId.value = undefined
+    await refreshNuxtData(`section-${sectionId.value}`)
+  } catch (error) {
+    console.error('Error adding student to section', error)
+    toast.add({ title: 'Error', description: 'Failed to add student to section.', color: 'error' })
+  } finally {
+    isAddStudentSubmitting.value = false
+  }
+}
+
+// Unassign student from section
+const studentToUnassign = ref<{ id: string; name: string } | null>(null)
+const isUnassignStudentOpen = ref(false)
+const isUnassignStudentSubmitting = ref(false)
+
+function openUnassignStudentConfirm(student: { id: string; name: string }) {
+  studentToUnassign.value = student
+  isUnassignStudentOpen.value = true
+}
+
+function closeUnassignStudentConfirm() {
+  isUnassignStudentOpen.value = false
+  studentToUnassign.value = null
+}
+
+async function confirmUnassignStudent() {
+  if (!sectionId.value || !studentToUnassign.value || isUnassignStudentSubmitting.value) return
+  isUnassignStudentSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/sections/${sectionId.value}/unassign-student/${studentToUnassign.value.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `${useAuthToken().value}` }
+    })
+    toast.add({ title: 'Success', description: 'Student removed from section.', color: 'success' })
+    closeUnassignStudentConfirm()
+    await refreshNuxtData(`section-${sectionId.value}`)
+  } catch (error) {
+    console.error('Error unassigning student from section', error)
+    toast.add({ title: 'Error', description: 'Failed to remove student from section.', color: 'error' })
+  } finally {
+    isUnassignStudentSubmitting.value = false
+  }
+}
 
 // START ASSESSMENT TAB SCRIPT
 
@@ -549,6 +645,82 @@ const journalcolumns: TableColumn<Journal>[] = [
           </UForm>
         </template>
       </UModal>
+
+      <!-- Add Student to Section Modal -->
+      <UModal v-model:open="isAddStudentOpen" :dismissible="!isAddStudentSubmitting">
+        <template #header>
+          <div class="flex items-center justify-between w-full">
+            <h3 class="text-lg font-semibold">Add Student to Section</h3>
+            <UButton
+              icon="i-lucide-x"
+              variant="ghost"
+              :disabled="isAddStudentSubmitting"
+              @click="isAddStudentOpen = false"
+            />
+          </div>
+        </template>
+        <template #body>
+          <form class="space-y-4" @submit.prevent="confirmAddStudent">
+            <UFormField label="Sectionless student" name="studentId" required block>
+              <USelect
+                v-model="addStudentSelectedId"
+                :items="addStudentDropdownItems"
+                placeholder="Select a student"
+                class="w-full"
+                :loading="sectionlessStudentsLoading"
+                :disabled="sectionlessStudentsLoading"
+              />
+            </UFormField>
+            <div class="flex justify-end gap-2">
+              <UButton
+                type="button"
+                variant="outline"
+                :disabled="isAddStudentSubmitting"
+                @click="isAddStudentOpen = false"
+              >
+                Cancel
+              </UButton>
+              <UButton
+                type="submit"
+                :loading="isAddStudentSubmitting"
+                :disabled="!addStudentSelectedId || isAddStudentSubmitting"
+              >
+                Add Student
+              </UButton>
+            </div>
+          </form>
+        </template>
+      </UModal>
+
+      <!-- Unassign Student Confirmation Modal -->
+      <UModal v-model:open="isUnassignStudentOpen" :dismissible="!isUnassignStudentSubmitting">
+        <template #header>
+          <h3 class="text-lg font-semibold">Remove student from section</h3>
+        </template>
+        <template #body>
+          <p v-if="studentToUnassign">
+            Are you sure you want to remove {{ studentToUnassign.name }} from this section?
+          </p>
+          <div class="flex justify-end gap-2 mt-6">
+            <UButton
+              type="button"
+              variant="outline"
+              :disabled="isUnassignStudentSubmitting"
+              @click="closeUnassignStudentConfirm"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="red"
+              :loading="isUnassignStudentSubmitting"
+              :disabled="isUnassignStudentSubmitting"
+              @click="confirmUnassignStudent"
+            >
+              Remove
+            </UButton>
+          </div>
+        </template>
+      </UModal>
     </UPageCard>
 
     <UPageCard class="mt-6">
@@ -560,7 +732,7 @@ const journalcolumns: TableColumn<Journal>[] = [
             <UContainer class="min-w-0">
               <div class="flex items-center justify-between">
                 <span class="text-lg font-semibold">Students ({{ studentData.length }})</span>
-                <UButton icon="i-lucide-plus" variant="ghost" color="neutral" square aria-label="Add student to section" />
+                <UButton icon="i-lucide-plus" variant="ghost" color="neutral" square aria-label="Add student to section" @click="openAddStudentModal" />
               </div>
               <UTable sticky ref="table" :data="studentData" :columns="columns" :loading="status === 'pending'" />
             </UContainer>
