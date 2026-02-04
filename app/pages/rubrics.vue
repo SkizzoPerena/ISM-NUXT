@@ -78,7 +78,7 @@ const rubriccolumns: TableColumn<Rubric>[] = [
   {
     accessorKey: 'title',
     header: 'Title',
-    cell: ({ row }) => h(NuxtLink, { to: `/details-rubrics?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
+    cell: ({ row }) => h(NuxtLink, { to: `/details-rubrics?id=${row.original._id}`,  class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('title') })
     },
     {
     accessorKey: 'createdAt',
@@ -177,7 +177,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       </div>
 
       <UTable ref="table1" v-model:expanded="expanded" :data="data || []" :columns="rubriccolumns"
-            :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="status === 'pending'">
+            :ui="{ tr: 'data-[expanded=true]:bg-elevated/50',   }" class="flex-1" :loading="status === 'pending'">
             <template #expanded="{ row }">
               <p class="p-4">{{ row.original.description }}</p>
             </template>

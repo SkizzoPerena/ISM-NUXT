@@ -6,6 +6,9 @@ definePageMeta({
   layout: 'dashboard',
 })
 
+const API_BASE = 'https://noteworthy-z9k0.onrender.com'
+
+
 const fileInput = ref<HTMLInputElement | null>(null);
 
 function triggerFileInput() {
@@ -29,6 +32,7 @@ const items = [
 
 const route = useRoute()
 const assessmentId = computed(() => route.query.id as string)
+const sectionId = computed(() => route.query.sectionId as string)
 
 type AssessmentDetail = {
   _id: string
@@ -66,12 +70,20 @@ type AssessmentPageData = {
   teacher: TeacherInfo | null;
 }
 
+type GroupSubmission = {
+  _id?: string
+  submissionURL?: string
+  submissionType?: string
+  assessmentSection?: { assessmentId?: { _id?: string, title?: string } }
+  [key: string]: unknown
+}
+
 // Fetch assessment and its associated teacher details in a single, combined async call
 const { data, status } = await useAsyncData<AssessmentPageData | null>(
   `assessment-page-${assessmentId.value}`,
   async () => {
     // 1. Fetch the primary assessment details
-    const assessmentResponse: any = await $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/assessments/${assessmentId.value}`, {
+    const assessmentResponse: any = await $fetch(`${API_BASE}/api/admin/assessments/${assessmentId.value}`, {
       headers: { Authorization: `${useAuthToken().value}` },
     });
     console.log('Assessment API Response:', assessmentResponse);
@@ -141,9 +153,39 @@ const { data, status } = await useAsyncData<AssessmentPageData | null>(
   }
 );
 
+// Fetch the specific submission for this assessment within the section
+const { data: submission, status: submissionStatus } = await useAsyncData<GroupSubmission | null>(
+  `group-submission-${sectionId.value}-${assessmentId.value}`,
+  async () => {
+    if (!sectionId.value || !assessmentId.value) return null
+    try {
+      // This endpoint gets all submissions for a section. We need to find the one we want.
+      const response: any = await $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/group-submission/section/${sectionId.value}`, {
+        headers: { Authorization: `${useAuthToken().value}` }
+      })
+      const submissions = response?.groupAssessmentSubmissions ?? response?.data ?? response?.groupSubmissions ?? response
+      if (Array.isArray(submissions)) {
+        // Find the submission that matches our current assessmentId
+        const found = submissions.find(s => s.assessmentSection?.assessmentId?._id === assessmentId.value)
+        return found || null
+      }
+    } catch (e) {
+      console.error('Failed to fetch group submissions', e)
+    }
+    return null
+  },
+  { watch: [sectionId, assessmentId] }
+)
+
 // Computed properties to easily access the nested data in the template
 const assessment = computed(() => data.value?.assessment);
 const teacher = computed(() => data.value?.teacher);
+const submissionUrl = computed(() => {
+  if (submission.value?.submissionURL) {
+    return getEmbedUrl(submission.value.submissionURL)
+  }
+  return ''
+})
 
 function getEmbedUrl(url: string): string {
   if (!url) return '';
@@ -198,12 +240,19 @@ watch(isAttachLinkModalOpen, (isOpen) => {
         <UContainer>
           <UPageGrid>
             <UContainer class="flex justify-center lg:col-span-3">
-              <!-- SUBMISSION VIDEO -->
-              <iframe src="https://www.youtube-nocookie.com/embed/_eQxomah-nA?si=pDSzchUBDKb2NQu7"
-                title="YouTube video player" frameborder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
-                style="aspect-ratio: 16/9; width: 50%;"></iframe>
+              <div v-if="submissionStatus === 'pending'" class="flex items-center justify-center h-full w-1/2 bg-gray-100 dark:bg-gray-800 rounded-lg" style="aspect-ratio: 16 / 9;">
+                <p>Loading submission...</p>
+              </div>
+              <template v-else-if="submissionUrl">
+                <iframe :src="submissionUrl"
+                  title="YouTube video player" frameborder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
+                  class="w-1/2 aspect-video"></iframe>
+              </template>
+              <div v-else class="flex items-center justify-center h-full w-1/2 bg-gray-100 dark:bg-gray-800 rounded-lg" style="aspect-ratio: 16 / 9;">
+                <p class="text-gray-500 dark:text-gray-400">No video attached yet</p>
+              </div>
             </UContainer>
 
 

@@ -29,6 +29,7 @@ const items = [
 
 const route = useRoute()
 const assessmentId = computed(() => route.query.id as string)
+const studentId = computed(() => route.query.studentId as string)
 
 type AssessmentDetail = {
   _id: string
@@ -64,6 +65,14 @@ type TeacherInfo = {
 type AssessmentPageData = {
   assessment: AssessmentDetail;
   teacher: TeacherInfo | null;
+}
+
+type SpecialSubmission = {
+  _id?: string
+  submissionURL?: string
+  submissionType?: string
+  assessmentStudent?: { assessmentId?: { _id?: string, title?: string } }
+  [key: string]: unknown
 }
 
 // Fetch assessment and its associated teacher details in a single, combined async call
@@ -141,9 +150,38 @@ const { data, status } = await useAsyncData<AssessmentPageData | null>(
   }
 );
 
+// Fetch the specific submission for this assessment for this student
+const { data: submission, status: submissionStatus } = await useAsyncData<SpecialSubmission | null>(
+  `special-submission-${studentId.value}-${assessmentId.value}`,
+  async () => {
+    if (!studentId.value || !assessmentId.value) return null
+    try {
+      const response: any = await $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/special-submission/student/${studentId.value}`, {
+        headers: { Authorization: `${useAuthToken().value}` }
+      })
+      const submissions = response?.specialAssessmentSubmissions ?? response?.data ?? response?.specialSubmissions ?? response
+      if (Array.isArray(submissions)) {
+        // Note the different path to assessmentId for special submissions
+        const found = submissions.find(s => s.assessmentStudent?.assessmentId?._id === assessmentId.value)
+        return found || null
+      }
+    } catch (e) {
+      console.error('Failed to fetch special submissions', e)
+    }
+    return null
+  },
+  { watch: [studentId, assessmentId] }
+)
+
 // Computed properties to easily access the nested data in the template
 const assessment = computed(() => data.value?.assessment);
 const teacher = computed(() => data.value?.teacher);
+const submissionUrl = computed(() => {
+  if (submission.value?.submissionURL) {
+    return getEmbedUrl(submission.value.submissionURL)
+  }
+  return ''
+})
 
 function getEmbedUrl(url: string): string {
   if (!url) return '';
@@ -198,12 +236,19 @@ watch(isAttachLinkModalOpen, (isOpen) => {
         <UContainer>
           <UPageGrid>
             <UContainer class="flex justify-center lg:col-span-3">
-              <!-- SUBMISSION VIDEO -->
-              <iframe src="https://www.youtube-nocookie.com/embed/_eQxomah-nA?si=pDSzchUBDKb2NQu7"
-                title="YouTube video player" frameborder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
-                style="aspect-ratio: 16/9; width: 50%;"></iframe>
+              <div v-if="submissionStatus === 'pending'" class="flex items-center justify-center h-full w-1/2 bg-gray-100 dark:bg-gray-800 rounded-lg" style="aspect-ratio: 16 / 9;">
+                <p>Loading submission...</p>
+              </div>
+              <template v-else-if="submissionUrl">
+                <iframe :src="submissionUrl"
+                  title="YouTube video player" frameborder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
+                  class="w-1/2 aspect-video"></iframe>
+              </template>
+              <div v-else class="flex items-center justify-center h-full w-1/2 bg-gray-100 dark:bg-gray-800 rounded-lg" style="aspect-ratio: 16 / 9;">
+                <p class="text-gray-500 dark:text-gray-400">No video attached yet</p>
+              </div>
             </UContainer>
 
 

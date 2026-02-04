@@ -56,7 +56,7 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
   {
     accessorKey: 'title',
     header: 'Title',
-    cell: ({ row }) => h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
+    cell: ({ row }) => h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`,  class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('title') })
   },
   {
     accessorKey: 'createdAt',
@@ -156,8 +156,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       </div>
       
       <UTable ref="table" v-model:expanded="expanded" :data="data || []" :columns="assessmentcolumns"
-        :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }"
-        class="flex-1 mt-4 border-t border-default" :loading="status === 'pending'">
+        :ui="{ tr: 'data-[expanded=true]:bg-elevated/50',}"
+        class="flex-1" :loading="status === 'pending'">
         <template #expanded="{ row }">
           <p class="p-4">{{ row.original.instructions }}</p>
         </template>
