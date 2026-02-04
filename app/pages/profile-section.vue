@@ -837,7 +837,7 @@ const groupAssessmentColumns: TableColumn<Assessment>[] = [
     accessorKey: 'title',
     header: 'Title',
     meta: { class: { td: 'w-1/2' } },
-    cell: ({ row }) => h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('title') })
+    cell: ({ row }) => h(NuxtLink, { to: `/details-submissions-group?id=${row.original._id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('title') })
   },
   {
     accessorKey: 'createdAt',
