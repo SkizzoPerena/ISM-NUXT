@@ -65,6 +65,10 @@ type GuardianInfo = {
   profileImageURL: string
 }
 
+const guardianToUnassign = ref<GuardianInfo | null>(null)
+const isUnassignGuardianOpen = ref(false)
+const isUnassignGuardianSubmitting = ref(false)
+
 type StudentDetail = {
   _id: string
   firstName: string
@@ -155,6 +159,75 @@ const assignSectionDropdownItems = computed(() =>
   (allSections.value ?? []).map((s) => ({ label: s.name, value: s._id }))
 )
 
+// Assign Instrument / Guardian (UI hooks; endpoints TBD)
+const isAssignInstrumentOpen = ref(false)
+const isAssignGuardianOpen = ref(false)
+
+type AvailableGuardianOption = {
+  _id: string
+  firstName: string
+  lastName: string
+  profileImageURL?: string
+}
+
+const availableGuardians = ref<AvailableGuardianOption[]>([])
+const availableGuardiansLoading = ref(false)
+const assignGuardianSelectedId = ref<string | undefined>(undefined)
+const isAssignGuardianSubmitting = ref(false)
+
+function openAssignGuardianModal() {
+  isAssignGuardianOpen.value = true
+  assignGuardianSelectedId.value = undefined
+  availableGuardiansLoading.value = true
+  $fetch(`${API_BASE}/api/admin/guardian`, {
+    headers: { Authorization: `${useAuthToken().value}` }
+  })
+    .then((response: any) => {
+      const list = response?.data ?? response?.guardians ?? response
+      const rows = Array.isArray(list) ? list : []
+      availableGuardians.value = rows.map((g: any) => ({
+        _id: g._id,
+        firstName: g.firstName,
+        lastName: g.lastName,
+        profileImageURL: g.profileImageURL
+      }))
+      availableGuardiansLoading.value = false
+    })
+    .catch((error) => {
+      console.error('Error loading available guardians', error)
+      availableGuardiansLoading.value = false
+      toast.add({ title: 'Error', description: 'Failed to load available guardians.', color: 'error' })
+    })
+}
+
+const assignGuardianDropdownItems = computed(() =>
+  availableGuardians.value.map((g) => ({ label: `${g.firstName} ${g.lastName}`, value: g._id }))
+)
+
+async function confirmAssignGuardian() {
+  if (!studentId.value || !assignGuardianSelectedId.value || isAssignGuardianSubmitting.value) return
+  isAssignGuardianSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/student-guardian/assign`, {
+      method: 'POST',
+      headers: { Authorization: `${useAuthToken().value}` },
+      body: {
+        studentId: studentId.value,
+        guardianId: assignGuardianSelectedId.value
+      }
+    })
+    toast.add({ title: 'Success', description: 'Guardian assigned to student.', color: 'success' })
+    isAssignGuardianOpen.value = false
+    assignGuardianSelectedId.value = undefined
+    await refreshGuardians()
+  } catch (error) {
+    console.error('Error assigning guardian', error)
+    toast.add({ title: 'Error', description: 'Failed to assign guardian.', color: 'error' })
+  } finally {
+    isAssignGuardianSubmitting.value = false
+  }
+}
+
 // Unassign section from student
 const isUnassignSectionOpen = ref(false)
 const sectionToUnassign = ref<SectionInfo | null>(null)
@@ -193,9 +266,9 @@ async function confirmUnassignSection() {
 }
 
 // Fetch assigned guardians for the student
-const { data: guardians, status: guardiansStatus } = await useAsyncData<GuardianInfo[]>(
+const { data: guardians, status: guardiansStatus, refresh: refreshGuardians } = await useAsyncData<GuardianInfo[]>(
   `student-guardians-${studentId.value}`,
-  () => $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/student-guardian/${studentId.value}/guardians`, {
+  () => $fetch(`${API_BASE}/api/admin/student-guardian/${studentId.value}/guardians`, {
     headers: {
       Authorization: `${useAuthToken().value}`
     },
@@ -216,6 +289,42 @@ const { data: guardians, status: guardiansStatus } = await useAsyncData<Guardian
     watch: [studentId]
   }
 )
+
+function openUnassignGuardianConfirm(guardian: GuardianInfo) {
+  guardianToUnassign.value = guardian
+  isUnassignGuardianOpen.value = true
+}
+
+function closeUnassignGuardianConfirm() {
+  if (!isUnassignGuardianSubmitting.value) {
+    isUnassignGuardianOpen.value = false
+    guardianToUnassign.value = null
+  }
+}
+
+async function confirmUnassignGuardian() {
+  if (!studentId.value || !guardianToUnassign.value || isUnassignGuardianSubmitting.value) return
+  isUnassignGuardianSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/student-guardian/unassign`, {
+      method: 'DELETE',
+      headers: { Authorization: `${useAuthToken().value}` },
+      body: {
+        studentId: studentId.value,
+        guardianId: guardianToUnassign.value._id,
+      },
+    })
+    toast.add({ title: 'Success', description: 'Guardian removed from student.', color: 'success' })
+    isUnassignGuardianOpen.value = false
+    guardianToUnassign.value = null
+    await refreshGuardians()
+  } catch (error) {
+    console.error('Error unassigning guardian', error)
+    toast.add({ title: 'Error', description: 'Failed to remove guardian.', color: 'error' })
+  } finally {
+    isUnassignGuardianSubmitting.value = false
+  }
+}
 
 // Fetch assigned instruments for the student
 const { data: instruments, status: instrumentsStatus } = await useAsyncData<InstrumentInfo[]>(
@@ -830,7 +939,17 @@ async function onDeleteStudent() {
 
               <div>
                 <UContainer v-if="instruments && instruments.length > 0">
-                  <h3 class="text-lg font-semibold">Assigned Instruments</h3>
+                  <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold">Assigned Instruments</h3>
+                    <UButton
+                      icon="i-lucide-plus"
+                      variant="ghost"
+                      color="neutral"
+                      square
+                      aria-label="Assign instrument"
+                      @click="isAssignInstrumentOpen = true"
+                    />
+                  </div>
 
                   <div class="space-y-2 mt-4">
                     <div v-for="instrument in instruments" :key="instrument._id">
@@ -842,14 +961,34 @@ async function onDeleteStudent() {
                   </div>
                 </UContainer>
                 <UContainer v-else-if="instrumentsStatus === 'success'">
-                  <h3 class="text-lg font-semibold">Assigned Instruments</h3>
+                  <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold">Assigned Instruments</h3>
+                    <UButton
+                      icon="i-lucide-plus"
+                      variant="ghost"
+                      color="neutral"
+                      square
+                      aria-label="Assign instrument"
+                      @click="isAssignInstrumentOpen = true"
+                    />
+                  </div>
                   <p class="mt-4">No instruments assigned to this student.</p>
                 </UContainer>
               </div>
 
               <div>
                 <UContainer v-if="guardians && guardians.length > 0">
-                  <h3 class="text-lg font-semibold">Assigned Guardians</h3>
+                  <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold">Assigned Guardians</h3>
+                    <UButton
+                      icon="i-lucide-plus"
+                      variant="ghost"
+                      color="neutral"
+                      square
+                      aria-label="Assign guardian"
+                      @click="openAssignGuardianModal"
+                    />
+                  </div>
 
                   <div class="space-y-4 mt-4">
                     <div v-for="guardian in guardians" :key="guardian._id" class="flex items-center gap-4">
@@ -859,11 +998,28 @@ async function onDeleteStudent() {
                           {{ guardian.firstName }} {{ guardian.lastName }}
                         </NuxtLink>
                       </div>
+                      <UButton
+                        icon="i-lucide-trash"
+                        variant="ghost"
+                        aria-label="Remove guardian from student"
+                        class="ml-auto shrink-0"
+                        @click="openUnassignGuardianConfirm(guardian)"
+                      />
                     </div>
                   </div>
                 </UContainer>
                 <UContainer v-else-if="guardiansStatus === 'success'">
-                  <h3 class="text-lg font-semibold">Assigned Guardians</h3>
+                  <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold">Assigned Guardians</h3>
+                    <UButton
+                      icon="i-lucide-plus"
+                      variant="ghost"
+                      color="neutral"
+                      square
+                      aria-label="Assign guardian"
+                      @click="openAssignGuardianModal"
+                    />
+                  </div>
                   <p class="mt-4">No guardians assigned to this student.</p>
                 </UContainer>
               </div>
@@ -1149,6 +1305,95 @@ async function onDeleteStudent() {
               :loading="isUnassignSectionSubmitting"
               :disabled="isUnassignSectionSubmitting"
               @click="confirmUnassignSection"
+            >
+              Remove
+            </UButton>
+          </div>
+        </template>
+      </UModal>
+
+      <!-- Assign Instrument Modal -->
+      <UModal v-model:open="isAssignInstrumentOpen">
+        <template #header>
+          <div class="flex items-center justify-between w-full">
+            <h3 class="text-lg font-semibold">Assign Instrument</h3>
+            <UButton icon="i-lucide-x" variant="ghost" @click="isAssignInstrumentOpen = false" />
+          </div>
+        </template>
+        <template #body>
+          <p class="text-gray-500 dark:text-gray-400">Instrument assignment UI goes here.</p>
+        </template>
+      </UModal>
+
+      <!-- Assign Guardian Modal -->
+      <UModal v-model:open="isAssignGuardianOpen" :dismissible="!isAssignGuardianSubmitting">
+        <template #header>
+          <div class="flex items-center justify-between w-full">
+            <h3 class="text-lg font-semibold">Assign Guardian</h3>
+            <UButton
+              icon="i-lucide-x"
+              variant="ghost"
+              :disabled="isAssignGuardianSubmitting"
+              @click="isAssignGuardianOpen = false"
+            />
+          </div>
+        </template>
+        <template #body>
+          <form class="space-y-4" @submit.prevent="confirmAssignGuardian">
+            <UFormField label="Guardian" name="guardianId" required block>
+              <USelect
+                v-model="assignGuardianSelectedId"
+                :items="assignGuardianDropdownItems"
+                placeholder="Select a guardian"
+                class="w-full"
+                :loading="availableGuardiansLoading"
+                :disabled="availableGuardiansLoading"
+              />
+            </UFormField>
+            <div class="flex justify-end gap-2">
+              <UButton
+                type="button"
+                variant="outline"
+                :disabled="isAssignGuardianSubmitting"
+                @click="isAssignGuardianOpen = false"
+              >
+                Cancel
+              </UButton>
+              <UButton
+                type="submit"
+                :loading="isAssignGuardianSubmitting"
+                :disabled="!assignGuardianSelectedId || isAssignGuardianSubmitting"
+              >
+                Assign Guardian
+              </UButton>
+            </div>
+          </form>
+        </template>
+      </UModal>
+
+      <!-- Unassign Guardian Confirmation Modal -->
+      <UModal v-model:open="isUnassignGuardianOpen" :dismissible="!isUnassignGuardianSubmitting">
+        <template #header>
+          <h3 class="text-lg font-semibold">Remove guardian from student</h3>
+        </template>
+        <template #body>
+          <p v-if="guardianToUnassign">
+            Are you sure you want to remove {{ guardianToUnassign.firstName }} {{ guardianToUnassign.lastName }} from this student?
+          </p>
+          <div class="flex justify-end gap-2 mt-6">
+            <UButton
+              type="button"
+              variant="outline"
+              :disabled="isUnassignGuardianSubmitting"
+              @click="closeUnassignGuardianConfirm"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="error"
+              :loading="isUnassignGuardianSubmitting"
+              :disabled="isUnassignGuardianSubmitting"
+              @click="confirmUnassignGuardian"
             >
               Remove
             </UButton>
