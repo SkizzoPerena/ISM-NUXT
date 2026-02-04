@@ -448,10 +448,23 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
   {
     accessorKey: 'title',
     header: 'Title',
-    cell: ({ row }) => h('div', { class: 'flex items-center justify-between w-full' }, [
-      // The NuxtLink for the title
-      h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') }),
-      // The expand button
+    cell: ({ row }) => h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
+  },
+  {
+    accessorKey: 'createdAt',
+    header: 'Date',
+    cell: ({ row }) => {
+      const dateValue = row.getValue('createdAt') as string
+      if (!dateValue) return ''
+      const date = new Date(dateValue)
+      // Format to something like: "Oct 10, 2026, 20:15"
+      const formattedDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false }).format(date)
+      return `Created: ${formattedDate}`
+    }
+  },
+  {
+    id: 'expand',
+    cell: ({ row }) =>
       h(UButton, {
         color: 'neutral',
         variant: 'ghost',
@@ -466,7 +479,6 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
         },
         onClick: () => row.toggleExpanded()
       })
-    ])
   },
 ]
 
@@ -767,8 +779,8 @@ async function onDeleteStudent() {
                   @click="openEditModal"
                 />
                 <UButton
-                  icon="i-lucide-trash-2"
-                  color="error"
+                  icon="i-lucide-trash"
+                  color="red"
                   variant="ghost"
                   aria-label="Delete student"
                   @click="isDeleteOpen = true"
@@ -795,7 +807,7 @@ async function onDeleteStudent() {
                         {{ section.name }}
                       </NuxtLink>
                       <UButton
-                        icon="i-lucide-trash-2"
+                        icon="i-lucide-trash"
                         variant="ghost"
                         aria-label="Remove section from student"
                         class="ml-auto shrink-0"
@@ -1060,12 +1072,85 @@ async function onDeleteStudent() {
               Cancel
             </UButton>
             <UButton
-              color="error"
+              color="red"
               :loading="isDeleteSubmitting"
               :disabled="isDeleteSubmitting"
               @click="onDeleteStudent"
             >
               Delete
+            </UButton>
+          </div>
+        </template>
+      </UModal>
+
+      <!-- Assign Section Modal -->
+      <UModal v-model:open="isAssignSectionOpen" :dismissible="!isAssignSectionSubmitting">
+        <template #header>
+          <div class="flex items-center justify-between w-full">
+            <h3 class="text-lg font-semibold">Assign Section</h3>
+            <UButton
+              icon="i-lucide-x"
+              variant="ghost"
+              :disabled="isAssignSectionSubmitting"
+              @click="isAssignSectionOpen = false"
+            />
+          </div>
+        </template>
+        <template #body>
+          <form class="space-y-4" @submit.prevent="confirmAssignSection">
+            <UFormField label="Section" name="sectionId" required block>
+              <USelect
+                v-model="assignSectionSelectedId"
+                :items="assignSectionDropdownItems"
+                placeholder="Select a section"
+                class="w-full"
+              />
+            </UFormField>
+            <div class="flex justify-end gap-2">
+              <UButton
+                type="button"
+                variant="outline"
+                :disabled="isAssignSectionSubmitting"
+                @click="isAssignSectionOpen = false"
+              >
+                Cancel
+              </UButton>
+              <UButton
+                type="submit"
+                :loading="isAssignSectionSubmitting"
+                :disabled="!assignSectionSelectedId || isAssignSectionSubmitting"
+              >
+                Assign Section
+              </UButton>
+            </div>
+          </form>
+        </template>
+      </UModal>
+
+      <!-- Unassign Section Confirmation Modal -->
+      <UModal v-model:open="isUnassignSectionOpen" :dismissible="!isUnassignSectionSubmitting">
+        <template #header>
+          <h3 class="text-lg font-semibold">Remove section from student</h3>
+        </template>
+        <template #body>
+          <p v-if="sectionToUnassign">
+            Are you sure you want to remove {{ sectionToUnassign.name }} from this student?
+          </p>
+          <div class="flex justify-end gap-2 mt-6">
+            <UButton
+              type="button"
+              variant="outline"
+              :disabled="isUnassignSectionSubmitting"
+              @click="closeUnassignSectionConfirm"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              :loading="isUnassignSectionSubmitting"
+              :disabled="isUnassignSectionSubmitting"
+              @click="confirmUnassignSection"
+            >
+              Remove
             </UButton>
           </div>
         </template>

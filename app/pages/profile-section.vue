@@ -6,8 +6,6 @@ import type { TableColumn } from '@nuxt/ui'
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
-const toast = useToast()
-const UCheckbox = resolveComponent('UCheckbox')
 
 
 definePageMeta({
@@ -46,7 +44,6 @@ type Journal = {
   _id: string
   title: string
   createdAt: string // Assignment creation date
-  startDate: string // Assignment start date
   endDate: string // Assignment due date
   description: string
 }
@@ -97,93 +94,6 @@ const { data: section, status } = await useAsyncData<SectionDetail>(
   }
 )
 
-// Fetch all students to populate the "Add Student" modal **WIP**
-const { data: allStudents } = await useAsyncData(
-  'all-students',
-  () => $fetch(`${API_BASE}/api/admin/student`, {
-    headers: {
-      Authorization: `${useAuthToken().value}`
-    }
-  }),
-  {
-    transform: (response: any): { id: string, label: string }[] => {
-      const students = response.data || response.students || response
-      if (!Array.isArray(students)) return []
-      return students.map((s: any) => ({
-        id: s._id,
-        label: `${s.firstName} ${s.lastName} (${s.email})` // Add email for uniqueness
-      }))
-    },
-    lazy: true // Can be lazy as it's for a modal
-  }
-)
-
-// Fetch all teachers to populate the "Add Teacher" modal **WIP**
-const { data: allTeachers } = await useAsyncData(
-  'all-teachers',
-  () => $fetch(`${API_BASE}/api/admin/teacher`, {
-    headers: {
-      Authorization: `${useAuthToken().value}`
-    }
-  }),
-  {
-    transform: (response: any): { id: string, label: string }[] => {
-      const teachers = response.data || response.teachers || response
-      if (!Array.isArray(teachers)) return []
-      return teachers.map((t: any) => ({
-        id: t._id,
-        label: `${t.firstName} ${t.lastName} (${t.email})` // Add email for uniqueness
-      }))
-    },
-    lazy: true // Can be lazy as it's for a modal
-  }
-)
-
-// Fetch all assessments to populate the "Add Assessment" modal **WIP**
-const { data: allAssessments } = await useAsyncData(
-  'all-assessments',
-  () => $fetch(`${API_BASE}/api/admin/assessments`, {
-    headers: {
-      Authorization: `${useAuthToken().value}`
-    }
-  }),
-  {
-    transform: (response: any): { id: string, label: string }[] => {
-      const assessments = response.data || response.assessments || response
-      if (!Array.isArray(assessments)) return []
-      return assessments.map((a: any) => ({
-        id: a._id,
-        label: a.title
-      }))
-    },
-    lazy: true
-  }
-)
-
-// Fetch all journals to populate the "Add Journal" modal **WIP**
-const { data: allJournals } = await useAsyncData( 
-  'all-journals',
-  () => $fetch(`${API_BASE}/api/admin/journals`, {
-    headers: {
-      Authorization: `${useAuthToken().value}`
-    }
-  }),
-  {
-    transform: (response: any): { id: string, label: string }[] => {
-      const journals = response.data || response.journals || response
-      if (!Array.isArray(journals)) return []
-      return journals.map((j: any) => ({
-        id: j._id,
-        label: j.title
-      }))
-    },
-    lazy: true
-  }
-)
-
-
-
-
 // Fetch assigned journals for the section
 const { data: journalEntries, status: journalEntriesStatus } = await useAsyncData<Journal[]>(
   `section-journals-${sectionId.value}`,
@@ -212,12 +122,11 @@ const { data: journalEntries, status: journalEntriesStatus } = await useAsyncDat
           console.warn('Journal assignment is missing journalId property:', assignment);
           return null; // or handle as needed
         }
-
+        
         return {
           _id: journal._id, // This is the ID of the journal template
           title: journal.title,
           createdAt: assignment.createdAt, // The assignment creation date
-          startDate: assignment.startDate,
           endDate: assignment.endDate, // The due date for this assignment
           description: journal.description,
         };
@@ -252,7 +161,7 @@ const { data: groupAssessments, status: groupAssessmentsStatus } = await useAsyn
           console.warn('Group assessment assignment is missing assessmentId property:', assignment);
           return null;
         }
-
+        
         return {
           _id: assessment._id,
           title: assessment.title,
@@ -290,7 +199,7 @@ const { data: individualAssessments, status: individualAssessmentsStatus } = awa
           console.warn('Individual assessment assignment is missing assessmentId property:', assignment);
           return null;
         }
-
+        
         return {
           _id: assessment._id,
           title: assessment.title,
@@ -361,168 +270,8 @@ const items = [
   },
 ] satisfies TabsItem[]
 
-const assessmentAccordionItems = computed(() => [
-  {
-    label: `Class Assessments (${groupAssessments.value?.length || 0})`,
-    slot: 'class-assessments',
-    defaultOpen: true,
-  },
-  {
-    label: `Individual Assessments (${individualAssessments.value?.length || 0})`,
-    slot: 'individual-assessments',
-  },
-])
-
-
-const submissionAccordionItems = computed(() => [
-
-  {
-    label: `Pending Submissions (${pendingSubmissions.value.length})`,
-    slot: 'pending-submissions',
-  },
-  {
-    label: `Submitted Submissions (${submittedSubmissions.value.length})`,
-    slot: 'submitted-submissions',
-  },
-])
-
-
-// START ASSESSMENT MODAL SCRIPT
-const isAddAssessmentModalOpen = ref(false)
-const isAddingAssessment = ref(false)
-const assessmentTypeToAdd = ref<'GROUP' | 'INDIVIDUAL'>('GROUP')
-const addAssessmentState = reactive({
-  assessment: undefined as string | undefined,
-})
-
-function validateAddAssessment(state: typeof addAssessmentState): FormError[] {
-  const errors: FormError[] = []
-  if (!state.assessment) {
-    errors.push({ name: 'assessment', message: 'Please select an assessment' })
-  }
-  return errors
-}
-
-function openAddAssessmentModal(type: 'GROUP' | 'INDIVIDUAL') {
-  assessmentTypeToAdd.value = type
-  isAddAssessmentModalOpen.value = true
-}
-
-async function onAddAssessmentSubmit() {
-  if (!addAssessmentState.assessment) {
-    toast.add({ title: 'Validation Error', description: 'Please select an assessment to add.', color: 'warning' })
-    return
-  }
-  if (!sectionId.value) return
-
-  isAddingAssessment.value = true
-  try {
-    await $fetch(`${API_BASE}/api/admin/assessment-sections`, {
-      method: 'POST',
-      headers: {
-        Authorization: `${useAuthToken().value}`,
-      },
-      body: {
-        assessmentId: addAssessmentState.assessment,
-        sectionId: sectionId.value,
-        assignmentType: assessmentTypeToAdd.value,
-      },
-    })
-
-    toast.add({ title: 'Success', description: 'Assessment assigned to section.', color: 'success' })
-    isAddAssessmentModalOpen.value = false
-    addAssessmentState.assessment = undefined // Reset form
-
-    if (assessmentTypeToAdd.value === 'GROUP') {
-      await refreshNuxtData(`section-group-assessments-${sectionId.value}`)
-    } else {
-      await refreshNuxtData(`section-individual-assessments-${sectionId.value}`)
-    }
-  } catch (error) {
-    console.error('Error assigning assessment to section:', error)
-    toast.add({ title: 'Error', description: 'Failed to assign assessment to the section.', color: 'error' })
-  } finally {
-    isAddingAssessment.value = false
-  }
-}
-// END ASSESSMENT MODAL SCRIPT
-
-// START JOURNAL MODAL SCRIPT
-const isAddJournalModalOpen = ref(false)
-const isAddingJournal = ref(false)
-const addJournalState = reactive({
-  journal: undefined as string | undefined,
-  startDate: '',
-  endDate: '',
-})
-
-function validateAddJournal(state: typeof addJournalState): FormError[] {
-  const errors: FormError[] = []
-  if (!state.journal) errors.push({ name: 'journal', message: 'Please select a journal' })
-  if (!state.startDate) errors.push({ name: 'startDate', message: 'Start date is required' })
-  if (!state.endDate) errors.push({ name: 'endDate', message: 'End date is required' })
-  return errors
-}
-
-async function onAddJournalSubmit() {
-  const validationErrors = validateAddJournal(addJournalState)
-  if (validationErrors.length > 0) {
-    toast.add({ title: 'Validation Error', description: 'Please fill all required fields.', color: 'warning' })
-    return
-  }
-  if (!sectionId.value) return
-
-  isAddingJournal.value = true
-  try {
-    await $fetch(`${API_BASE}/api/admin/journal-sections`, {
-      method: 'POST',
-      headers: { Authorization: `${useAuthToken().value}` },
-      body: { journalId: addJournalState.journal, sectionId: sectionId.value, startDate: addJournalState.startDate, endDate: addJournalState.endDate },
-    })
-    toast.add({ title: 'Success', description: 'Journal assigned to section.', color: 'success' })
-    isAddJournalModalOpen.value = false
-    Object.assign(addJournalState, { journal: undefined, startDate: '', endDate: '' }) // Reset form
-    await refreshNuxtData(`section-journals-${sectionId.value}`)
-  } catch (error) {
-    console.error('Error assigning journal to section:', error)
-    toast.add({ title: 'Error', description: 'Failed to assign journal to the section.', color: 'error' })
-  } finally {
-    isAddingJournal.value = false
-  }
-}
-// END JOURNAL MODAL SCRIPT
 
 // PEOPLE TAB SCRIPT
-
-const isAddStudentModalOpen = ref(false)
-const isAddingStudent = ref(false)
-const addStudentState = reactive({
-  student: undefined as string | undefined,
-})
-
-function validateAddStudent(state: typeof addStudentState): FormError[] {
-  const errors: FormError[] = []
-  if (!state.student) {
-    errors.push({ name: 'student', message: 'Please select a student' })
-  }
-  return errors
-}
-
-const isAddTeacherModalOpen = ref(false)
-const isAddingTeacher = ref(false)
-const addTeacherState = reactive({
-  teacher: undefined as string | undefined,
-})
-
-function validateAddTeacher(state: typeof addTeacherState): FormError[] {
-  const errors: FormError[] = []
-  if (!state.teacher) {
-    errors.push({ name: 'teacher', message: 'Please select a teacher' })
-  }
-  return errors
-}
-
-const selectedStudents = ref<any[]>([])
 
 const studentData = computed(() => {
   if (!section.value?.students) return []
@@ -536,21 +285,6 @@ const studentData = computed(() => {
   }))
 })
 
-// Filter out students who are already in the current section
-const availableStudents = computed(() => {
-  if (!allStudents.value || !section.value?.students) return []
-  const currentStudentIds = new Set(section.value.students.map(s => s._id))
-  return allStudents.value.filter(s => !currentStudentIds.has(s.id))
-})
-
-// Filter out teachers who are already in the current section
-const availableTeachers = computed(() => {
-  if (!allTeachers.value || !section.value?.teachers) return []
-  const currentTeacherIds = new Set(section.value.teachers.map(t => t._id))
-  return allTeachers.value.filter(t => !currentTeacherIds.has(t.id))
-})
-
-
 const UAvatar = resolveComponent('UAvatar')
 const NuxtLink = resolveComponent('NuxtLink')
 
@@ -558,23 +292,11 @@ const NuxtLink = resolveComponent('NuxtLink')
 const columns: TableColumn<any>[] = [
   {
     accessorKey: 'name',
-    header: ({ table }) => h('div', { class: 'flex items-center gap-3' }, [
-      h(UCheckbox, {
-        modelValue: table.getIsSomePageRowsSelected() ? 'indeterminate' : table.getIsAllPageRowsSelected(),
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') => table.toggleAllPageRowsSelected(!!value),
-        'aria-label': 'Select all'
-      }),
-      h('span', {}, 'Name')
-    ]),
+    header: 'Name',
     cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
-      h(UCheckbox, {
-        modelValue: row.getIsSelected(),
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') => row.toggleSelected(!!value),
-        'aria-label': 'Select row'
-      }),
       h(UAvatar, { src: row.original.avatar, alt: row.original.name }),
       h('div', undefined, [
-        h(NuxtLink, { to: `/profile-student?id=${row.original.id}`, class: 'font-medium' }, { default: () => row.getValue('name') }),
+        h(NuxtLink, { to: `/profile-student?id=${row.original.id}`, class: 'font-medium'}, { default: () => row.getValue('name') }),
         h('p', { class: 'text-sm text-gray-500 dark:text-gray-400' }, row.original.email)
       ])
     ])
@@ -583,6 +305,19 @@ const columns: TableColumn<any>[] = [
     accessorKey: 'gender',
     header: 'Gender',
     cell: ({ row }) => row.original.gender ?? '—'
+  },
+  {
+    id: 'unassign',
+    header: '',
+    cell: ({ row }) =>
+      h(UButton, {
+        icon: 'i-lucide-trash',
+        color: 'red',
+        variant: 'ghost',
+        square: true,
+        'aria-label': 'Unassign student from section',
+        onClick: () => openUnassignStudentConfirm(row.original)
+      })
   },
 ]
 
@@ -618,101 +353,6 @@ const teacher_columns: TableColumn<any>[] = [
 
 const table = useTemplateRef('table')
 
-async function onAddStudentSubmit() {
-  if (!addStudentState.student) {
-    toast.add({ title: 'Validation Error', description: 'Please select a student to add.', color: 'warning' })
-    return
-  }
-  if (!sectionId.value) return
-
-  isAddingStudent.value = true
-  try {
-    // The API likely expects the full array of student IDs for the section.
-    const currentStudentIds = section.value?.students.map(s => s._id) || []
-    const updatedStudentIds = [...currentStudentIds, addStudentState.student]
-
-    await $fetch(`${API_BASE}/api/admin/sections/${sectionId.value}`, {
-      method: 'PATCH',
-      headers: {
-        Authorization: `${useAuthToken().value}`,
-      },
-      body: {
-        students: updatedStudentIds,
-      },
-    })
-
-    toast.add({ title: 'Success', description: 'Student added to section.', color: 'success' })
-    isAddStudentModalOpen.value = false
-    addStudentState.student = undefined // Reset form
-    await refreshNuxtData(`section-${sectionId.value}`) // Refresh section data
-  } catch (error) {
-    console.error('Error adding student to section:', error)
-    toast.add({ title: 'Error', description: 'Failed to add student to the section.', color: 'error' })
-  } finally {
-    isAddingStudent.value = false
-  }
-}
-
-async function onAddTeacherSubmit() {
-  if (!addTeacherState.teacher) {
-    toast.add({ title: 'Validation Error', description: 'Please select a teacher to add.', color: 'warning' })
-    return
-  }
-  if (!sectionId.value) return
-
-  isAddingTeacher.value = true
-  try {
-    const currentTeacherIds = section.value?.teachers.map(t => t._id) || []
-    const updatedTeacherIds = [...currentTeacherIds, addTeacherState.teacher]
-
-    await $fetch(`${API_BASE}/api/admin/sections/${sectionId.value}`, {
-      method: 'PATCH',
-      headers: {
-        Authorization: `${useAuthToken().value}`,
-      },
-      body: {
-        teachers: updatedTeacherIds,
-      },
-    })
-
-    toast.add({ title: 'Success', description: 'Teacher added to section.', color: 'success' })
-    isAddTeacherModalOpen.value = false
-    addTeacherState.teacher = undefined // Reset form
-    await refreshNuxtData(`section-${sectionId.value}`) // Refresh section data
-  } catch (error) {
-    console.error('Error adding teacher to section:', error)
-    toast.add({ title: 'Error', description: 'Failed to add teacher to the section.', color: 'error' })
-  } finally {
-    isAddingTeacher.value = false
-  }
-}
-
-function handleDeleteSelectedStudents() {
-  if (selectedStudents.value.length === 0)
-    return
-
-  const studentNames = selectedStudents.value.map(s => s.name).join(', ')
-  toast.add({
-    title: 'Delete Students',
-    description: `Delete action triggered for: ${studentNames}`,
-    color: 'error',
-  })
-  // TODO: Implement bulk student deletion from section logic
-}
-
-function handleDeleteSelectedAssessments(type: 'GROUP' | 'INDIVIDUAL') {
-  const selection = type === 'GROUP' ? selectedGroupAssessments.value : selectedIndividualAssessments.value
-  if (selection.length === 0) return
-
-  const assessmentTitles = selection.map(a => a.title).join(', ')
-  toast.add({
-    title: `Delete ${type.toLowerCase()} assessments`,
-    description: `Delete action triggered for: ${assessmentTitles}`,
-    color: 'error',
-  })
-  // TODO: Implement bulk assessment deletion from section logic
-}
-
 // END PEOPLE TAB SCRIPT
 
 // EDIT SECTION FORM
@@ -726,6 +366,8 @@ function validateEdit(state: Partial<EditSchema>): FormError[] {
   if (!state.sectionName) errors.push({ name: 'sectionName', message: 'Required' })
   return errors
 }
+
+const toast = useToast()
 
 function openEditModal() {
   editState.sectionName = section.value?.name ?? ''
@@ -755,47 +397,133 @@ async function onSubmitEdit(event: FormSubmitEvent<EditSchema>) {
 
 // END EDIT SECTION FORM
 
+// ADD STUDENT TO SECTION (sectionless students)
+const isAddStudentOpen = ref(false)
+const sectionlessStudents = ref<{ _id: string; firstName: string; lastName: string; email?: string }[]>([])
+const sectionlessStudentsLoading = ref(false)
+const addStudentSelectedId = ref<string | undefined>(undefined)
+const isAddStudentSubmitting = ref(false)
+
+function openAddStudentModal() {
+  isAddStudentOpen.value = true
+  addStudentSelectedId.value = undefined
+  sectionlessStudentsLoading.value = true
+  $fetch(`${API_BASE}/api/admin/student/sectionless/all`, {
+    headers: { Authorization: `${useAuthToken().value}` }
+  })
+    .then((data: any) => {
+      const list = data?.data ?? data?.students ?? data
+      sectionlessStudents.value = Array.isArray(list) ? list : []
+      sectionlessStudentsLoading.value = false
+    })
+    .catch(() => {
+      sectionlessStudentsLoading.value = false
+      toast.add({ title: 'Error', description: 'Failed to load sectionless students.', color: 'error' })
+    })
+}
+
+const addStudentDropdownItems = computed(() =>
+  sectionlessStudents.value.map((s) => ({ label: `${s.firstName} ${s.lastName}`, value: s._id }))
+)
+
+async function confirmAddStudent() {
+  if (!sectionId.value || !addStudentSelectedId.value || isAddStudentSubmitting.value) return
+  isAddStudentSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/sections/${sectionId.value}/assign-student/${addStudentSelectedId.value}`, {
+      method: 'POST',
+      headers: { Authorization: `${useAuthToken().value}` }
+    })
+    toast.add({ title: 'Success', description: 'Student added to section.', color: 'success' })
+    isAddStudentOpen.value = false
+    addStudentSelectedId.value = undefined
+    await refreshNuxtData(`section-${sectionId.value}`)
+  } catch (error) {
+    console.error('Error adding student to section', error)
+    toast.add({ title: 'Error', description: 'Failed to add student to section.', color: 'error' })
+  } finally {
+    isAddStudentSubmitting.value = false
+  }
+}
+
+// Unassign student from section
+const studentToUnassign = ref<{ id: string; name: string } | null>(null)
+const isUnassignStudentOpen = ref(false)
+const isUnassignStudentSubmitting = ref(false)
+
+function openUnassignStudentConfirm(student: { id: string; name: string }) {
+  studentToUnassign.value = student
+  isUnassignStudentOpen.value = true
+}
+
+function closeUnassignStudentConfirm() {
+  isUnassignStudentOpen.value = false
+  studentToUnassign.value = null
+}
+
+async function confirmUnassignStudent() {
+  if (!sectionId.value || !studentToUnassign.value || isUnassignStudentSubmitting.value) return
+  isUnassignStudentSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/sections/${sectionId.value}/unassign-student/${studentToUnassign.value.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `${useAuthToken().value}` }
+    })
+    toast.add({ title: 'Success', description: 'Student removed from section.', color: 'success' })
+    closeUnassignStudentConfirm()
+    await refreshNuxtData(`section-${sectionId.value}`)
+  } catch (error) {
+    console.error('Error unassigning student from section', error)
+    toast.add({ title: 'Error', description: 'Failed to remove student from section.', color: 'error' })
+  } finally {
+    isUnassignStudentSubmitting.value = false
+  }
+}
+
 // START ASSESSMENT TAB SCRIPT
-const selectedGroupAssessments = ref<any[]>([])
-const selectedIndividualAssessments = ref<any[]>([])
 
 const assessmentcolumns: TableColumn<Assessment>[] = [
   {
     accessorKey: 'title',
-    header: ({ table }) => h('div', { class: 'flex items-center gap-3' }, [
-      h(UCheckbox, {
-        modelValue: table.getIsSomePageRowsSelected() ? 'indeterminate' : table.getIsAllPageRowsSelected(),
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') => table.toggleAllPageRowsSelected(!!value),
-        'aria-label': 'Select all'
-      }),
-      h('span', {}, 'Class Assessments')
-    ]),
-    cell: ({ row }) => h('div', { class: 'flex items-center justify-between w-full' }, [
-      h('div', { class: 'flex items-center gap-3' }, [
-        h(UCheckbox, {
-          modelValue: row.getIsSelected(),
-          'onUpdate:modelValue': (value: boolean | 'indeterminate') => row.toggleSelected(!!value),
-          'aria-label': 'Select row'
-        }),
-        h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
-      ]),
-      h('div', { class: 'flex items-center' }, [
-        h(UButton, {
-          color: 'neutral',
-          variant: 'ghost',
-          icon: 'i-lucide-chevron-down',
-          square: true,
-          'aria-label': 'Expand',
-          ui: {
-            leadingIcon: [
-              'transition-transform',
-              row.getIsExpanded() ? 'duration-200 rotate-180' : ''
-            ]
-          },
-          onClick: () => row.toggleExpanded()
-        }),
-      ])
-    ])
+    header: 'Title',
+    cell: ({ row }) => h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
+  },
+  {
+    accessorKey: 'createdAt',
+    header: 'Date',
+    cell: ({ row }) => {
+      const dateValue = row.getValue('createdAt') as string
+      if (!dateValue) return ''
+      const date = new Date(dateValue)
+      // Format to something like: "Oct 10, 2026, 20:15"
+      const formattedDate = new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false
+      }).format(date)
+      return `Created: ${formattedDate}`
+    }
+  },
+  {
+    id: 'expand',
+    cell: ({ row }) =>
+      h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        icon: 'i-lucide-chevron-down',
+        square: true,
+        'aria-label': 'Expand',
+        ui: {
+          leadingIcon: [
+            'transition-transform',
+            row.getIsExpanded() ? 'duration-200 rotate-180' : ''
+          ]
+        },
+        onClick: () => row.toggleExpanded()
+      })
   },
 ]
 
@@ -834,7 +562,6 @@ const groupSubmissionColumns: TableColumn<GroupSubmission>[] = [
 // END ASSESSMENTS TAB SCRIPT
 
 // START JOURNALS TAB SCRIPT
-const selectedJournals = ref<any[]>([])
 
 // Data for journals will be fetched based on the section.
 const journalData = computed<Journal[]>(() => {
@@ -845,69 +572,40 @@ const journalData = computed<Journal[]>(() => {
 const journalcolumns: TableColumn<Journal>[] = [
   {
     accessorKey: 'title',
-    header: ({ table }) => h('div', { class: 'flex items-center gap-3' }, [
-      h(UCheckbox, {
-        modelValue: table.getIsSomePageRowsSelected() ? 'indeterminate' : table.getIsAllPageRowsSelected(),
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') => table.toggleAllPageRowsSelected(!!value),
-        'aria-label': 'Select all'
-      }),
-      h('span', {}, 'Title')
-    ]),
-    cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
-      h(UCheckbox, {
-        modelValue: row.getIsSelected(),
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') => row.toggleSelected(!!value),
-        'aria-label': 'Select row'
-      }),
-      h(NuxtLink, { to: `/details-journal?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
-    ])
+    header: 'Title',
+    cell: ({ row }) => h(NuxtLink, { to: `/details-journal?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
   },
   {
     accessorKey: 'endDate',
-    header: 'Schedule',
+    header: 'Date',
     cell: ({ row }) => {
-      const startDateValue = row.original.startDate as string
-      const endDateValue = row.original.endDate as string
-
-      const formatDate = (dateString: string | undefined) => {
-        if (!dateString) return 'N/A'
-        const date = new Date(dateString)
-        return new Intl.DateTimeFormat('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        }).format(date)
-      }
-
-      const scheduleText = `${formatDate(startDateValue)} - ${formatDate(endDateValue)}`
-
-      return h('div', { class: 'flex items-center justify-between w-full' }, [
-        h('span', {}, scheduleText),
-        h(UButton, {
-          color: 'neutral',
-          variant: 'ghost',
-          icon: 'i-lucide-chevron-down',
-          square: true,
-          'aria-label': 'Expand',
-          ui: {
-            leadingIcon: [
-              'transition-transform',
-              row.getIsExpanded() ? 'duration-200 rotate-180' : ''
-            ]
-          },
-          onClick: () => row.toggleExpanded()
-        })
-      ])
+      const dateValue = row.getValue('endDate') as string
+      if (!dateValue) return ''
+      const date = new Date(dateValue)
+      // Format to something like: "Oct 10, 2026, 20:15"
+      const formattedDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false }).format(date)
+      return `Due: ${formattedDate}`
     }
-  }
+  },
+  {
+    id: 'expand',
+    cell: ({ row }) =>
+      h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        icon: 'i-lucide-chevron-down',
+        square: true,
+        'aria-label': 'Expand',
+        ui: {
+          leadingIcon: [
+            'transition-transform',
+            row.getIsExpanded() ? 'duration-200 rotate-180' : ''
+          ]
+        },
+        onClick: () => row.toggleExpanded()
+      })
+  },
 ]
-
-function handleDeleteSelectedJournals() {
-  if (selectedJournals.value.length === 0)
-    return
-  const journalTitles = selectedJournals.value.map(j => j.title).join(', ')
-  toast.add({ title: 'Delete Journals', description: `Delete action triggered for: ${journalTitles}`, color: 'error' })
-}
 
 // END JOURNALS TAB SCRIPT
 </script>
@@ -918,9 +616,9 @@ function handleDeleteSelectedJournals() {
     <UPageCard v-if="status === 'pending'" class="h-40 flex items-center justify-center">
       <p>Loading section...</p>
     </UPageCard>
-    <UPageCard v-else-if="section" class="h-40 flex flex-col">
-      <div class="flex items-end w-full mt-auto">
-        <UPageHeader :title="section.name" style="border-bottom: 0; padding-bottom: 0;" class="mr-2"/>
+    <UPageCard v-else-if="section" class="h-40">
+      <div class="flex items-center justify-between w-full" style="border-bottom: 0; margin-top: auto; padding-bottom: 0;">
+        <UPageHeader :title="section.name" style="border-bottom: 0; padding-bottom: 0;" />
         <UButton icon="i-lucide-pencil" variant="ghost" aria-label="Edit section" @click="openEditModal" />
       </div>
 
@@ -947,6 +645,82 @@ function handleDeleteSelectedJournals() {
           </UForm>
         </template>
       </UModal>
+
+      <!-- Add Student to Section Modal -->
+      <UModal v-model:open="isAddStudentOpen" :dismissible="!isAddStudentSubmitting">
+        <template #header>
+          <div class="flex items-center justify-between w-full">
+            <h3 class="text-lg font-semibold">Add Student to Section</h3>
+            <UButton
+              icon="i-lucide-x"
+              variant="ghost"
+              :disabled="isAddStudentSubmitting"
+              @click="isAddStudentOpen = false"
+            />
+          </div>
+        </template>
+        <template #body>
+          <form class="space-y-4" @submit.prevent="confirmAddStudent">
+            <UFormField label="Sectionless student" name="studentId" required block>
+              <USelect
+                v-model="addStudentSelectedId"
+                :items="addStudentDropdownItems"
+                placeholder="Select a student"
+                class="w-full"
+                :loading="sectionlessStudentsLoading"
+                :disabled="sectionlessStudentsLoading"
+              />
+            </UFormField>
+            <div class="flex justify-end gap-2">
+              <UButton
+                type="button"
+                variant="outline"
+                :disabled="isAddStudentSubmitting"
+                @click="isAddStudentOpen = false"
+              >
+                Cancel
+              </UButton>
+              <UButton
+                type="submit"
+                :loading="isAddStudentSubmitting"
+                :disabled="!addStudentSelectedId || isAddStudentSubmitting"
+              >
+                Add Student
+              </UButton>
+            </div>
+          </form>
+        </template>
+      </UModal>
+
+      <!-- Unassign Student Confirmation Modal -->
+      <UModal v-model:open="isUnassignStudentOpen" :dismissible="!isUnassignStudentSubmitting">
+        <template #header>
+          <h3 class="text-lg font-semibold">Remove student from section</h3>
+        </template>
+        <template #body>
+          <p v-if="studentToUnassign">
+            Are you sure you want to remove {{ studentToUnassign.name }} from this section?
+          </p>
+          <div class="flex justify-end gap-2 mt-6">
+            <UButton
+              type="button"
+              variant="outline"
+              :disabled="isUnassignStudentSubmitting"
+              @click="closeUnassignStudentConfirm"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="red"
+              :loading="isUnassignStudentSubmitting"
+              :disabled="isUnassignStudentSubmitting"
+              @click="confirmUnassignStudent"
+            >
+              Remove
+            </UButton>
+          </div>
+        </template>
+      </UModal>
     </UPageCard>
 
     <UPageCard class="mt-6">
@@ -958,19 +732,14 @@ function handleDeleteSelectedJournals() {
             <UContainer class="min-w-0">
               <div class="flex items-center justify-between">
                 <span class="text-lg font-semibold">Students ({{ studentData.length }})</span>
-                <div class="flex items-center gap-2"> <UButton color="success" variant="subtle" label="Add Student" @click="isAddStudentModalOpen = true" />
-                  <UButton icon="i-lucide-trash-2" color="error" variant="subtle" square
-                    :disabled="selectedStudents.length === 0" @click="handleDeleteSelectedStudents" />
-                </div>
+                <UButton icon="i-lucide-plus" variant="ghost" color="neutral" square aria-label="Add student to section" @click="openAddStudentModal" />
               </div>
               <UTable sticky ref="table" :data="studentData" :columns="columns" :loading="status === 'pending'" />
             </UContainer>
             <UContainer class="min-w-0">
               <div class="flex items-center justify-between">
                 <span class="text-xl font-semibold">Teachers ({{ teacherData.length }})</span>
-                <div class="flex items-center gap-2"> <UButton color="success" variant="subtle" label="Add Teacher" @click="isAddTeacherModalOpen = true" />
-                  <UButton icon="i-lucide-trash-2" color="error" variant="subtle" square disabled />
-                </div>
+                <UButton icon="i-lucide-plus" variant="ghost" color="neutral" square aria-label="Add teacher to section" />
               </div>
               <UTable :data="teacherData" ref="table" :columns="teacher_columns" :loading="status === 'pending'" />
             </UContainer>
@@ -978,77 +747,79 @@ function handleDeleteSelectedJournals() {
         </template>
 
         <!-- ASSESSMENTS TAB -->
-
-
         <template #assessment="{ item }">
           <UContainer class="mt-5">
             <div class="flex items-center justify-between">
-              <span class="text-lg font-semibold">Assessments</span>
-                              <div class="flex justify-end gap-2 mb-2">
-                  <UButton color="success" variant="subtle" label="Add Assessment" @click="openAddAssessmentModal('GROUP')" />
-                  <UButton icon="i-lucide-trash-2" color="error" variant="subtle" square :disabled="selectedGroupAssessments.length === 0" @click="handleDeleteSelectedAssessments('GROUP')" />
+              <span class="text-lg font-semibold">Class-wide Assessments</span>
+              <UButton icon="i-lucide-plus" variant="ghost" color="neutral" square aria-label="Add class-wide assessment" />
+            </div>
+
+            <UTable v-model:expanded="groupAssessmentsExpanded" :data="groupAssessments || []" :columns="assessmentcolumns"
+              :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="groupAssessmentsStatus === 'pending'">
+              <template #empty-state>
+                <div class="flex flex-col items-center justify-center py-6 gap-3">
+                  <span class="italic text-sm">No class-wide assessments assigned to this section.</span>
                 </div>
+              </template>
+              <template #expanded="{ row }">
+                <p class="p-4">{{ row.original.instructions }}</p>
+              </template>
+            </UTable>
+          </UContainer>
+
+          <UContainer class="mt-5">
+            <div class="flex items-center justify-between">
+              <span class="text-lg font-semibold">Individual Assessments</span>
+              <UButton icon="i-lucide-plus" variant="ghost" color="neutral" square aria-label="Add individual assessment" />
             </div>
-            <UAccordion :items="assessmentAccordionItems" multiple>
-              <template #class-assessments>
-                <UTable v-model:expanded="groupAssessmentsExpanded" :data="groupAssessments || []"
-                  :columns="assessmentcolumns" :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }"
-                  class="flex-1 border-t border-default" :loading="groupAssessmentsStatus === 'pending'">
-                  <template #empty-state>
-                    <div class="flex flex-col items-center justify-center py-6 gap-3">
-                      <span class="italic text-sm">No class-wide assessments assigned to this section.</span>
-                    </div>
-                  </template>
-                  <template #expanded="{ row }">
-                    <p class="p-4">{{ row.original.instructions }}</p>
-                  </template>
-                </UTable>
+
+            <UTable v-model:expanded="individualAssessmentsExpanded" :data="individualAssessments || []" :columns="assessmentcolumns"
+              :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="individualAssessmentsStatus === 'pending'">
+              <template #empty-state>
+                <div class="flex flex-col items-center justify-center py-6 gap-3">
+                  <span class="italic text-sm">No individual assessments assigned to this section.</span>
+                </div>
               </template>
-
-              <template #individual-assessments>
-
-                <UTable v-model:expanded="individualAssessmentsExpanded" :data="individualAssessments || []"
-                  :columns="assessmentcolumns" :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }"
-                  class="flex-1  border-t border-default" :loading="individualAssessmentsStatus === 'pending'">
-                  <template #empty-state>
-                    <div class="flex flex-col items-center justify-center py-6 gap-3">
-                      <span class="italic text-sm">No individual assessments assigned to this section.</span>
-                    </div>
-                  </template>
-                  <template #expanded="{ row }">
-                    <p class="p-4">{{ row.original.instructions }}</p>
-                  </template>
-                </UTable>
+              <template #expanded="{ row }">
+                  <p class="p-4">{{ row.original.instructions }}</p>
               </template>
-            </UAccordion>
+            </UTable>
+          </UContainer>
 
-            <div class="flex items-center justify-between mt-5">
-              <span class="text-lg font-semibold">Assessment Submissions</span>
+          <UContainer class="mt-8">
+            <div class="text-lg font-semibold">Class Submissions</div>
 
+            <div class="mt-4">
+              <div class="text-base font-medium text-gray-500 dark:text-gray-400 mb-2">Pending ({{ pendingSubmissions.length }})</div>
+              <UTable
+                :data="pendingSubmissions"
+                :columns="groupSubmissionColumns"
+                class="border-t border-default w-full table-fixed"
+                :loading="groupSubmissionsStatus === 'pending'"
+              >
+                <template #empty-state>
+                  <div class="flex flex-col items-center justify-center py-6 gap-3">
+                    <span class="italic text-sm">No pending group submissions.</span>
+                  </div>
+                </template>
+              </UTable>
             </div>
-            <UAccordion :items="submissionAccordionItems" multiple>
-              <template #pending-submissions>
-                <UTable :data="pendingSubmissions" :columns="groupSubmissionColumns" class="w-full table-fixed"
-                  :loading="groupSubmissionsStatus === 'pending'">
-                  <template #empty-state>
-                    <div class="flex flex-col items-center justify-center py-6 gap-3">
-                      <span class="italic text-sm">No pending group submissions.</span>
-                    </div>
-                  </template>
-                </UTable>
-              </template>
 
-              <template #submitted-submissions>
-                <UTable :data="submittedSubmissions" :columns="groupSubmissionColumns" class="w-full table-fixed"
-                  :loading="groupSubmissionsStatus === 'pending'">
-                  <template #empty-state>
-                    <div class="flex flex-col items-center justify-center py-6 gap-3">
-                      <span class="italic text-sm">No submitted group submissions.</span>
-                    </div>
-                  </template>
-                </UTable>
-              </template>
-            </UAccordion>
+            <div class="mt-6">
+              <div class="text-base font-medium text-gray-500 dark:text-gray-400 mb-2">Submitted ({{ submittedSubmissions.length }})</div>
+              <UTable
+                :data="submittedSubmissions"
+                :columns="groupSubmissionColumns"
+                class="border-t border-default w-full table-fixed"
+                :loading="groupSubmissionsStatus === 'pending'"
+              >
+                <template #empty-state>
+                  <div class="flex flex-col items-center justify-center py-6 gap-3">
+                    <span class="italic text-sm">No submitted group submissions.</span>
+                  </div>
+                </template>
+              </UTable>
+            </div>
           </UContainer>
         </template>
 
@@ -1057,15 +828,11 @@ function handleDeleteSelectedJournals() {
           <UContainer class="mt-5">
             <div class="flex items-center justify-between">
               <span class="text-lg font-semibold">Assigned Practice Journals</span>
-              <div class="flex items-center gap-2">
-                <UButton color="success" variant="subtle" label="Add Practice Journal" @click="isAddJournalModalOpen = true" />
-                <UButton icon="i-lucide-trash-2" color="error" variant="subtle" square :disabled="selectedJournals.length === 0" @click="handleDeleteSelectedJournals" />
-              </div>
+              <UButton icon="i-lucide-plus" variant="ghost" color="neutral" square aria-label="Add practice journal" />
             </div>
 
-            <UTable v-model:expanded="journalsExpanded" :data="journalData"
-              :columns="journalcolumns" :ui="{ tr: 'data-[expanded=true]:bg-elevated/50' }"
-              class="flex-1 mt-4 border-t border-default" :loading="journalEntriesStatus === 'pending'">
+            <UTable v-model:expanded="journalsExpanded" :data="journalData" :columns="journalcolumns"
+              :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="journalEntriesStatus === 'pending'">
               <template #empty-state>
                 <div class="flex flex-col items-center justify-center py-6 gap-3">
                   <span class="italic text-sm">No journals assigned to this section.</span>
@@ -1074,141 +841,12 @@ function handleDeleteSelectedJournals() {
               <template #expanded="{ row }">
                 <p class="p-4">{{ row.original.description }}</p>
               </template>
-            </UTable>
+            </UTable> 
           </UContainer>
 
         </template>
       </UTabs>
     </UPageCard>
 
-    <!-- Add Student Modal -->
-    <UModal v-model:open="isAddStudentModalOpen" :dismissible="!isAddingStudent">
-      <template #header>
-        <div class="flex items-center justify-between w-full">
-          <h3 class="text-lg font-semibold">Add Student</h3>
-          <UButton icon="i-lucide-x" variant="ghost" :disabled="isAddingStudent" @click="isAddStudentModalOpen = false" />
-        </div>
-      </template>
-      <template #body>
-        <UForm :validate="validateAddStudent" :state="addStudentState" class="space-y-4" @submit="onAddStudentSubmit">
-          <UFormField label="Student Name" name="student" required block>
-            <USelectMenu
-              v-model="addStudentState.student"
-              :options="availableStudents"
-              placeholder="Select a student to add"
-              searchable
-              value-attribute="id"
-              option-attribute="label"
-              class="w-full"
-            />
-          </UFormField>
-          <div class="flex justify-end gap-2">
-            <UButton type="button" variant="outline" :disabled="isAddingStudent" @click="isAddStudentModalOpen = false">
-              Cancel
-            </UButton>
-            <UButton type="submit" :loading="isAddingStudent" :disabled="isAddingStudent">
-              Add Student
-            </UButton>
-          </div>
-        </UForm>
-      </template>
-    </UModal>
-
-    <!-- Add Teacher Modal -->
-    <UModal v-model:open="isAddTeacherModalOpen" :dismissible="!isAddingTeacher">
-      <template #header>
-        <div class="flex items-center justify-between w-full">
-          <h3 class="text-lg font-semibold">Add Teacher</h3>
-          <UButton icon="i-lucide-x" variant="ghost" :disabled="isAddingTeacher" @click="isAddTeacherModalOpen = false" />
-        </div>
-      </template>
-      <template #body>
-        <UForm :validate="validateAddTeacher" :state="addTeacherState" class="space-y-4" @submit="onAddTeacherSubmit">
-          <UFormField label="Teacher Name" name="teacher" required block>
-            <USelectMenu
-              v-model="addTeacherState.teacher"
-              :options="availableTeachers"
-              placeholder="Select a teacher to add"
-              searchable
-              value-attribute="id"
-              option-attribute="label"
-              class="w-full"
-            />
-          </UFormField>
-          <div class="flex justify-end gap-2">
-            <UButton type="button" variant="outline" :disabled="isAddingTeacher" @click="isAddTeacherModalOpen = false">
-              Cancel
-            </UButton>
-            <UButton type="submit" :loading="isAddingTeacher" :disabled="isAddingTeacher">
-              Add Teacher
-            </UButton>
-          </div>
-        </UForm>
-      </template>
-    </UModal>
-
-    <!-- Add Assessment Modal -->
-    <UModal v-model:open="isAddAssessmentModalOpen" :dismissible="!isAddingAssessment">
-      <template #header>
-        <div class="flex items-center justify-between w-full">
-          <h3 class="text-lg font-semibold">Add Assessment to Section</h3>
-          <UButton icon="i-lucide-x" variant="ghost" :disabled="isAddingAssessment" @click="isAddAssessmentModalOpen = false" />
-        </div>
-      </template>
-      <template #body>
-        <UForm :validate="validateAddAssessment" :state="addAssessmentState" class="space-y-4" @submit="onAddAssessmentSubmit">
-          <UFormField label="Assessment" name="assessment" required block>
-            <USelectMenu
-              v-model="addAssessmentState.assessment"
-              :options="allAssessments"
-              placeholder="Select an assessment"
-              searchable
-              value-attribute="id"
-              option-attribute="label"
-              class="w-full"
-            />
-          </UFormField>
-          <div class="flex justify-end gap-2">
-            <UButton type="button" variant="outline" :disabled="isAddingAssessment" @click="isAddAssessmentModalOpen = false">
-              Cancel
-            </UButton>
-            <UButton type="submit" :loading="isAddingAssessment" :disabled="isAddingAssessment">
-              Add Assessment
-            </UButton>
-          </div>
-        </UForm>
-      </template>
-    </UModal>
-
-    <!-- Add Journal Modal -->
-    <UModal v-model:open="isAddJournalModalOpen" :dismissible="!isAddingJournal">
-      <template #header>
-        <div class="flex items-center justify-between w-full">
-          <h3 class="text-lg font-semibold">Add Journal to Section</h3>
-          <UButton icon="i-lucide-x" variant="ghost" :disabled="isAddingJournal" @click="isAddJournalModalOpen = false" />
-        </div>
-      </template>
-      <template #body>
-        <UForm :validate="validateAddJournal" :state="addJournalState" class="space-y-4" @submit="onAddJournalSubmit">
-          <UFormField label="Journal" name="journal" required block>
-            <USelectMenu v-model="addJournalState.journal" :options="allJournals" placeholder="Select a journal" searchable value-attribute="id" option-attribute="label" class="w-full" />
-          </UFormField>
-          <UFormField label="Start Date" name="startDate" required>
-            <UInput v-model="addJournalState.startDate" type="date" />
-          </UFormField>
-          <UFormField label="End Date" name="endDate" required>
-            <UInput v-model="addJournalState.endDate" type="date" />
-          </UFormField>
-          <div class="flex justify-end gap-2">
-            <UButton type="button" variant="outline" :disabled="isAddingJournal" @click="isAddJournalModalOpen = false">
-              Cancel
-            </UButton>
-            <UButton type="submit" :loading="isAddingJournal" :disabled="isAddingJournal">
-              Add Journal
-            </UButton>
-          </div>
-        </UForm>
-      </template>
-    </UModal>
   </UContainer>
 </template>
