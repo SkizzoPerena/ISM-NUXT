@@ -349,6 +349,19 @@ const teacher_columns: TableColumn<any>[] = [
     header: 'Gender',
     cell: ({ row }) => row.original.gender ?? '—'
   },
+  {
+    id: 'unassign',
+    header: '',
+    cell: ({ row }) =>
+      h(UButton, {
+        icon: 'i-lucide-trash',
+        color: 'error',
+        variant: 'ghost',
+        square: true,
+        'aria-label': 'Unassign teacher from section',
+        onClick: () => openUnassignTeacherConfirm(row.original)
+      })
+  },
 ]
 
 const table = useTemplateRef('table')
@@ -443,6 +456,94 @@ async function confirmAddStudent() {
     toast.add({ title: 'Error', description: 'Failed to add student to section.', color: 'error' })
   } finally {
     isAddStudentSubmitting.value = false
+  }
+}
+
+// ADD TEACHER TO SECTION (teachers list)
+const isAddTeacherOpen = ref(false)
+const teachersList = ref<{ _id: string; firstName: string; lastName: string }[]>([])
+const teachersListLoading = ref(false)
+const addTeacherSelectedId = ref<string | undefined>(undefined)
+const isAddTeacherSubmitting = ref(false)
+
+function openAddTeacherModal() {
+  isAddTeacherOpen.value = true
+  addTeacherSelectedId.value = undefined
+  teachersListLoading.value = true
+  $fetch(`${API_BASE}/api/admin/teacher`, {
+    headers: { Authorization: `${useAuthToken().value}` }
+  })
+    .then((response: any) => {
+      const list = response?.data ?? response?.teachers ?? response
+      const rows = Array.isArray(list) ? list : []
+      teachersList.value = rows.map((t: any) => ({
+        _id: t._id,
+        firstName: t.firstName,
+        lastName: t.lastName
+      }))
+      teachersListLoading.value = false
+    })
+    .catch(() => {
+      teachersListLoading.value = false
+      toast.add({ title: 'Error', description: 'Failed to load teachers.', color: 'error' })
+    })
+}
+
+const addTeacherDropdownItems = computed(() =>
+  teachersList.value.map((t) => ({ label: `${t.firstName} ${t.lastName}`, value: t._id }))
+)
+
+async function confirmAddTeacher() {
+  if (!sectionId.value || !addTeacherSelectedId.value || isAddTeacherSubmitting.value) return
+  isAddTeacherSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/sections/${sectionId.value}/assign-teacher/${addTeacherSelectedId.value}`, {
+      method: 'POST',
+      headers: { Authorization: `${useAuthToken().value}` }
+    })
+    toast.add({ title: 'Success', description: 'Teacher added to section.', color: 'success' })
+    isAddTeacherOpen.value = false
+    addTeacherSelectedId.value = undefined
+    await refreshNuxtData(`section-${sectionId.value}`)
+  } catch (error) {
+    console.error('Error adding teacher to section', error)
+    toast.add({ title: 'Error', description: 'Failed to add teacher to section.', color: 'error' })
+  } finally {
+    isAddTeacherSubmitting.value = false
+  }
+}
+
+// Unassign teacher from section
+const teacherToUnassign = ref<{ id: string; name: string } | null>(null)
+const isUnassignTeacherOpen = ref(false)
+const isUnassignTeacherSubmitting = ref(false)
+
+function openUnassignTeacherConfirm(teacher: { id: string; name: string }) {
+  teacherToUnassign.value = teacher
+  isUnassignTeacherOpen.value = true
+}
+
+function closeUnassignTeacherConfirm() {
+  isUnassignTeacherOpen.value = false
+  teacherToUnassign.value = null
+}
+
+async function confirmUnassignTeacher() {
+  if (!sectionId.value || !teacherToUnassign.value || isUnassignTeacherSubmitting.value) return
+  isUnassignTeacherSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/sections/${sectionId.value}/unassign-teacher/${teacherToUnassign.value.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `${useAuthToken().value}` }
+    })
+    toast.add({ title: 'Success', description: 'Teacher removed from section.', color: 'success' })
+    closeUnassignTeacherConfirm()
+    await refreshNuxtData(`section-${sectionId.value}`)
+  } catch (error) {
+    console.error('Error unassigning teacher from section', error)
+    toast.add({ title: 'Error', description: 'Failed to remove teacher from section.', color: 'error' })
+  } finally {
+    isUnassignTeacherSubmitting.value = false
   }
 }
 
@@ -692,6 +793,82 @@ const journalcolumns: TableColumn<Journal>[] = [
         </template>
       </UModal>
 
+      <!-- Add Teacher to Section Modal -->
+      <UModal v-model:open="isAddTeacherOpen" :dismissible="!isAddTeacherSubmitting">
+        <template #header>
+          <div class="flex items-center justify-between w-full">
+            <h3 class="text-lg font-semibold">Add Teacher to Section</h3>
+            <UButton
+              icon="i-lucide-x"
+              variant="ghost"
+              :disabled="isAddTeacherSubmitting"
+              @click="isAddTeacherOpen = false"
+            />
+          </div>
+        </template>
+        <template #body>
+          <form class="space-y-4" @submit.prevent="confirmAddTeacher">
+            <UFormField label="Teacher" name="teacherId" required block>
+              <USelect
+                v-model="addTeacherSelectedId"
+                :items="addTeacherDropdownItems"
+                placeholder="Select a teacher"
+                class="w-full"
+                :loading="teachersListLoading"
+                :disabled="teachersListLoading"
+              />
+            </UFormField>
+            <div class="flex justify-end gap-2">
+              <UButton
+                type="button"
+                variant="outline"
+                :disabled="isAddTeacherSubmitting"
+                @click="isAddTeacherOpen = false"
+              >
+                Cancel
+              </UButton>
+              <UButton
+                type="submit"
+                :loading="isAddTeacherSubmitting"
+                :disabled="!addTeacherSelectedId || isAddTeacherSubmitting"
+              >
+                Add Teacher
+              </UButton>
+            </div>
+          </form>
+        </template>
+      </UModal>
+
+      <!-- Unassign Teacher Confirmation Modal -->
+      <UModal v-model:open="isUnassignTeacherOpen" :dismissible="!isUnassignTeacherSubmitting">
+        <template #header>
+          <h3 class="text-lg font-semibold">Remove teacher from section</h3>
+        </template>
+        <template #body>
+          <p v-if="teacherToUnassign">
+            Are you sure you want to remove {{ teacherToUnassign.name }} from this section?
+          </p>
+          <div class="flex justify-end gap-2 mt-6">
+            <UButton
+              type="button"
+              variant="outline"
+              :disabled="isUnassignTeacherSubmitting"
+              @click="closeUnassignTeacherConfirm"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="error"
+              :loading="isUnassignTeacherSubmitting"
+              :disabled="isUnassignTeacherSubmitting"
+              @click="confirmUnassignTeacher"
+            >
+              Remove
+            </UButton>
+          </div>
+        </template>
+      </UModal>
+
       <!-- Unassign Student Confirmation Modal -->
       <UModal v-model:open="isUnassignStudentOpen" :dismissible="!isUnassignStudentSubmitting">
         <template #header>
@@ -739,7 +916,14 @@ const journalcolumns: TableColumn<Journal>[] = [
             <UContainer class="min-w-0">
               <div class="flex items-center justify-between">
                 <span class="text-xl font-semibold">Teachers ({{ teacherData.length }})</span>
-                <UButton icon="i-lucide-plus" variant="ghost" color="neutral" square aria-label="Add teacher to section" />
+                <UButton
+                  icon="i-lucide-plus"
+                  variant="ghost"
+                  color="neutral"
+                  square
+                  aria-label="Add teacher to section"
+                  @click="openAddTeacherModal"
+                />
               </div>
               <UTable :data="teacherData" ref="table" :columns="teacher_columns" :loading="status === 'pending'" />
             </UContainer>
