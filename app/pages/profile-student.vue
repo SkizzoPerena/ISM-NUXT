@@ -750,7 +750,7 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
   {
     accessorKey: 'title',
     header: 'Title',
-    cell: ({ row }) => h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
+    cell: ({ row }) => h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('title') })
   },
   {
     accessorKey: 'createdAt',
@@ -788,7 +788,7 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
     cell: ({ row }) =>
       row.original.assignmentId
         ? h(UButton, {
-            icon: 'i-lucide-trash',
+            icon: 'i-lucide-trash-2',
             color: 'error' as const,
             variant: 'ghost',
             square: true,
@@ -1096,8 +1096,8 @@ async function onDeleteStudent() {
                   @click="openEditModal"
                 />
                 <UButton
-                  icon="i-lucide-trash"
-                  color="red"
+                  icon="i-lucide-trash-2"
+                  color="error"
                   variant="ghost"
                   aria-label="Delete student"
                   @click="isDeleteOpen = true"
@@ -1124,8 +1124,9 @@ async function onDeleteStudent() {
                         {{ section.name }}
                       </NuxtLink>
                       <UButton
-                        icon="i-lucide-trash"
+                        icon="i-lucide-trash-2"
                         variant="ghost"
+                        color="error"
                         aria-label="Remove section from student"
                         class="ml-auto shrink-0"
                         @click="openUnassignSectionConfirm(section)"
@@ -1152,7 +1153,7 @@ async function onDeleteStudent() {
                     <UButton
                       icon="i-lucide-plus"
                       variant="ghost"
-                      color="neutral"
+                      color="success"
                       square
                       aria-label="Assign instrument"
                       @click="openAssignInstrumentModal"
@@ -1166,7 +1167,7 @@ async function onDeleteStudent() {
                         <UBadge v-if="instrument.proficiency" :color="getProficiencyColor(instrument.proficiency)" variant="subtle" class="ml-2">{{ instrument.proficiency }}</UBadge>
                       </span>
                       <UButton
-                        icon="i-lucide-trash"
+                        icon="i-lucide-trash-2"
                         color="error"
                         variant="ghost"
                         square
@@ -1183,7 +1184,7 @@ async function onDeleteStudent() {
                     <UButton
                       icon="i-lucide-plus"
                       variant="ghost"
-                      color="neutral"
+                      color="success"
                       square
                       aria-label="Assign instrument"
                       @click="openAssignInstrumentModal"
@@ -1200,7 +1201,7 @@ async function onDeleteStudent() {
                     <UButton
                       icon="i-lucide-plus"
                       variant="ghost"
-                      color="neutral"
+                      color="success"
                       square
                       aria-label="Assign guardian"
                       @click="openAssignGuardianModal"
@@ -1216,8 +1217,9 @@ async function onDeleteStudent() {
                         </NuxtLink>
                       </div>
                       <UButton
-                        icon="i-lucide-trash"
+                        icon="i-lucide-trash-2"
                         variant="ghost"
+                        color="error"
                         aria-label="Remove guardian from student"
                         class="ml-auto shrink-0"
                         @click="openUnassignGuardianConfirm(guardian)"
@@ -1231,7 +1233,7 @@ async function onDeleteStudent() {
                     <UButton
                       icon="i-lucide-plus"
                       variant="ghost"
-                      color="neutral"
+                      color="success"
                       square
                       aria-label="Assign guardian"
                       @click="openAssignGuardianModal"
@@ -1251,7 +1253,7 @@ async function onDeleteStudent() {
                 <UButton
                   icon="i-lucide-plus"
                   variant="ghost"
-                  color="neutral"
+                  color="success"
                   square
                   aria-label="Assign assessment"
                   @click="openAssignAssessmentModal"
@@ -1455,7 +1457,7 @@ async function onDeleteStudent() {
               Cancel
             </UButton>
             <UButton
-              color="red"
+              color="error"
               :loading="isDeleteSubmitting"
               :disabled="isDeleteSubmitting"
               @click="onDeleteStudent"

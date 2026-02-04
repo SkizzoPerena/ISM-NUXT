@@ -61,7 +61,7 @@ const columns: TableColumn<Guardian>[] = [
     cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
       h(UAvatar, { src: row.original.profileImageURL, alt: row.original.name }),
       h('div', undefined, [
-        h(NuxtLink, { to: `/profile-guardian?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.original.name }),
+        h(NuxtLink, { to: `/profile-guardian?id=${row.original._id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.original.name }),
         h('p', { class: 'text-sm text-gray-500 dark:text-gray-400' }, row.original.email)
       ])
     ])
@@ -158,7 +158,7 @@ async function onSubmitCreate(event: FormSubmitEvent<CreateSchema>) {
     <UPageCard>
 
       <div class="flex items-center gap-4 mb-4">
-        <div class="text-lg font-bold">guardians</div>
+        <div class="text-lg font-bold">Guardians</div>
         <div style="margin-left: auto">
           <UInput :model-value="table?.tableApi?.getColumn('name')?.getFilterValue() as string" class="max-w-sm mr-5"
             placeholder="Search guardians..."

@@ -3,6 +3,7 @@ import type { FormError, FormSubmitEvent } from '@nuxt/ui'
 import { h, resolveComponent, computed } from 'vue'
 import type { TabsItem } from '@nuxt/ui'
 import type { TableColumn } from '@nuxt/ui'
+import type { AccordionItem } from '@nuxt/ui'
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
@@ -122,7 +123,7 @@ const { data: journalEntries, status: journalEntriesStatus } = await useAsyncDat
           console.warn('Journal assignment is missing journalId property:', assignment);
           return null; // or handle as needed
         }
-        
+
         return {
           _id: journal._id, // This is the ID of the journal template
           title: journal.title,
@@ -161,7 +162,7 @@ const { data: groupAssessments, status: groupAssessmentsStatus } = await useAsyn
           console.warn('Group assessment assignment is missing assessmentId property:', assignment);
           return null;
         }
-        
+
         return {
           _id: assessment._id,
           title: assessment.title,
@@ -199,7 +200,7 @@ const { data: individualAssessments, status: individualAssessmentsStatus } = awa
           console.warn('Individual assessment assignment is missing assessmentId property:', assignment);
           return null;
         }
-        
+
         return {
           _id: assessment._id,
           title: assessment.title,
@@ -293,10 +294,12 @@ const columns: TableColumn<any>[] = [
   {
     accessorKey: 'name',
     header: 'Name',
+    meta: { class: { td: 'w-3/4' } },
+
     cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
       h(UAvatar, { src: row.original.avatar, alt: row.original.name }),
       h('div', undefined, [
-        h(NuxtLink, { to: `/profile-student?id=${row.original.id}`, class: 'font-medium'}, { default: () => row.getValue('name') }),
+        h(NuxtLink, { to: `/profile-student?id=${row.original.id}`, class: 'font-medium' }, { default: () => row.getValue('name') }),
         h('p', { class: 'text-sm text-gray-500 dark:text-gray-400' }, row.original.email)
       ])
     ])
@@ -304,6 +307,7 @@ const columns: TableColumn<any>[] = [
   {
     accessorKey: 'gender',
     header: 'Gender',
+    meta: { class: { td: 'w-1/4' } },
     cell: ({ row }) => row.original.gender ?? '—'
   },
   {
@@ -311,8 +315,8 @@ const columns: TableColumn<any>[] = [
     header: '',
     cell: ({ row }) =>
       h(UButton, {
-        icon: 'i-lucide-trash',
-        color: 'red',
+        icon: 'i-lucide-trash-2',
+        color: 'error',
         variant: 'ghost',
         square: true,
         'aria-label': 'Unassign student from section',
@@ -336,6 +340,7 @@ const teacher_columns: TableColumn<any>[] = [
   {
     accessorKey: 'name',
     header: 'Name',
+    meta: { class: { td: 'w-3/4' } },
     cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
       h(UAvatar, { src: row.original.avatar, alt: row.original.name }),
       h('div', undefined, [
@@ -347,6 +352,7 @@ const teacher_columns: TableColumn<any>[] = [
   {
     accessorKey: 'gender',
     header: 'Gender',
+    meta: { class: { td: 'w-1/4' } },
     cell: ({ row }) => row.original.gender ?? '—'
   },
   {
@@ -354,7 +360,7 @@ const teacher_columns: TableColumn<any>[] = [
     header: '',
     cell: ({ row }) =>
       h(UButton, {
-        icon: 'i-lucide-trash',
+        icon: 'i-lucide-trash-2',
         color: 'error',
         variant: 'ghost',
         square: true,
@@ -587,11 +593,13 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
   {
     accessorKey: 'title',
     header: 'Title',
-    cell: ({ row }) => h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
+    meta: { class: { td: 'w-1/2' } },
+    cell: ({ row }) => h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('title') })
   },
   {
     accessorKey: 'createdAt',
     header: 'Date',
+    meta: { class: { td: 'w-1/2' } },
     cell: ({ row }) => {
       const dateValue = row.getValue('createdAt') as string
       if (!dateValue) return ''
@@ -611,20 +619,28 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
   {
     id: 'expand',
     cell: ({ row }) =>
-      h(UButton, {
-        color: 'neutral',
-        variant: 'ghost',
-        icon: 'i-lucide-chevron-down',
-        square: true,
-        'aria-label': 'Expand',
-        ui: {
-          leadingIcon: [
-            'transition-transform',
-            row.getIsExpanded() ? 'duration-200 rotate-180' : ''
-          ]
-        },
-        onClick: () => row.toggleExpanded()
-      })
+      h('div', { class: 'flex items-center' }, [
+        h(UButton, {
+          color: 'neutral',
+          variant: 'ghost',
+          icon: 'i-lucide-chevron-down',
+          square: true,
+          'aria-label': 'Expand',
+          ui: {
+            leadingIcon: [
+              'transition-transform',
+              row.getIsExpanded() ? 'duration-200 rotate-180' : ''
+            ]
+          },
+          onClick: () => row.toggleExpanded()
+        }),
+        h(UButton, {
+          color: 'error',
+          variant: 'ghost',
+          icon: 'i-lucide-trash-2',
+          square: true,
+          'aria-label': 'Unassign Assessment',
+        })])
   },
 ]
 
@@ -660,6 +676,30 @@ const groupSubmissionColumns: TableColumn<GroupSubmission>[] = [
   }
 ]
 
+const assessmentAccordionItems = computed(() => [
+  {
+    label: `Class Assessments (${groupAssessments.value?.length || 0})`,
+    slot: 'class-assessments',
+    defaultOpen: true,
+  },
+  {
+    label: `Individual Assessments (${individualAssessments.value?.length || 0})`,
+    slot: 'individual-assessments',
+  },
+])
+
+const submissionAccordionItems = computed(() => [
+
+  {
+    label: `Pending Submissions (${pendingSubmissions.value.length})`,
+    slot: 'pending-submissions',
+  },
+  {
+    label: `Submitted Submissions (${submittedSubmissions.value.length})`,
+    slot: 'submitted-submissions',
+  },
+])
+
 // END ASSESSMENTS TAB SCRIPT
 
 // START JOURNALS TAB SCRIPT
@@ -674,11 +714,13 @@ const journalcolumns: TableColumn<Journal>[] = [
   {
     accessorKey: 'title',
     header: 'Title',
-    cell: ({ row }) => h(NuxtLink, { to: `/details-journal?id=${row.original._id}`, class: 'font-medium hover:underline' }, { default: () => row.getValue('title') })
+    meta: { class: { td: 'w-1/2' } },
+    cell: ({ row }) => h(NuxtLink, { to: `/details-journal?id=${row.original._id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('title') })
   },
   {
     accessorKey: 'endDate',
     header: 'Date',
+    meta: { class: { td: 'w-1/2' } },
     cell: ({ row }) => {
       const dateValue = row.getValue('endDate') as string
       if (!dateValue) return ''
@@ -691,20 +733,28 @@ const journalcolumns: TableColumn<Journal>[] = [
   {
     id: 'expand',
     cell: ({ row }) =>
-      h(UButton, {
-        color: 'neutral',
-        variant: 'ghost',
-        icon: 'i-lucide-chevron-down',
-        square: true,
-        'aria-label': 'Expand',
-        ui: {
-          leadingIcon: [
-            'transition-transform',
-            row.getIsExpanded() ? 'duration-200 rotate-180' : ''
-          ]
-        },
-        onClick: () => row.toggleExpanded()
-      })
+      h('div', { class: 'flex items-center' }, [
+        h(UButton, {
+          color: 'neutral',
+          variant: 'ghost',
+          icon: 'i-lucide-chevron-down',
+          square: true,
+          'aria-label': 'Expand',
+          ui: {
+            leadingIcon: [
+              'transition-transform',
+              row.getIsExpanded() ? 'duration-200 rotate-180' : ''
+            ]
+          },
+          onClick: () => row.toggleExpanded()
+        }),
+        h(UButton, {
+          color: 'error',
+          variant: 'ghost',
+          icon: 'i-lucide-trash-2',
+          square: true,
+          'aria-label': 'Unassign Assessment',
+        })])
   },
 ]
 
@@ -718,7 +768,8 @@ const journalcolumns: TableColumn<Journal>[] = [
       <p>Loading section...</p>
     </UPageCard>
     <UPageCard v-else-if="section" class="h-40">
-      <div class="flex items-center justify-between w-full" style="border-bottom: 0; margin-top: auto; padding-bottom: 0;">
+      <div class="flex items-center justify-between w-full"
+        style="border-bottom: 0; margin-top: auto; padding-bottom: 0;">
         <UPageHeader :title="section.name" style="border-bottom: 0; padding-bottom: 0;" />
         <UButton icon="i-lucide-pencil" variant="ghost" aria-label="Edit section" @click="openEditModal" />
       </div>
@@ -752,40 +803,23 @@ const journalcolumns: TableColumn<Journal>[] = [
         <template #header>
           <div class="flex items-center justify-between w-full">
             <h3 class="text-lg font-semibold">Add Student to Section</h3>
-            <UButton
-              icon="i-lucide-x"
-              variant="ghost"
-              :disabled="isAddStudentSubmitting"
-              @click="isAddStudentOpen = false"
-            />
+            <UButton icon="i-lucide-x" variant="ghost" :disabled="isAddStudentSubmitting"
+              @click="isAddStudentOpen = false" />
           </div>
         </template>
         <template #body>
           <form class="space-y-4" @submit.prevent="confirmAddStudent">
             <UFormField label="Sectionless student" name="studentId" required block>
-              <USelect
-                v-model="addStudentSelectedId"
-                :items="addStudentDropdownItems"
-                placeholder="Select a student"
-                class="w-full"
-                :loading="sectionlessStudentsLoading"
-                :disabled="sectionlessStudentsLoading"
-              />
+              <USelect v-model="addStudentSelectedId" :items="addStudentDropdownItems" placeholder="Select a student"
+                class="w-full" :loading="sectionlessStudentsLoading" :disabled="sectionlessStudentsLoading" />
             </UFormField>
             <div class="flex justify-end gap-2">
-              <UButton
-                type="button"
-                variant="outline"
-                :disabled="isAddStudentSubmitting"
-                @click="isAddStudentOpen = false"
-              >
+              <UButton type="button" variant="outline" :disabled="isAddStudentSubmitting"
+                @click="isAddStudentOpen = false">
                 Cancel
               </UButton>
-              <UButton
-                type="submit"
-                :loading="isAddStudentSubmitting"
-                :disabled="!addStudentSelectedId || isAddStudentSubmitting"
-              >
+              <UButton type="submit" :loading="isAddStudentSubmitting"
+                :disabled="!addStudentSelectedId || isAddStudentSubmitting">
                 Add Student
               </UButton>
             </div>
@@ -798,40 +832,23 @@ const journalcolumns: TableColumn<Journal>[] = [
         <template #header>
           <div class="flex items-center justify-between w-full">
             <h3 class="text-lg font-semibold">Add Teacher to Section</h3>
-            <UButton
-              icon="i-lucide-x"
-              variant="ghost"
-              :disabled="isAddTeacherSubmitting"
-              @click="isAddTeacherOpen = false"
-            />
+            <UButton icon="i-lucide-x" variant="ghost" :disabled="isAddTeacherSubmitting"
+              @click="isAddTeacherOpen = false" />
           </div>
         </template>
         <template #body>
           <form class="space-y-4" @submit.prevent="confirmAddTeacher">
             <UFormField label="Teacher" name="teacherId" required block>
-              <USelect
-                v-model="addTeacherSelectedId"
-                :items="addTeacherDropdownItems"
-                placeholder="Select a teacher"
-                class="w-full"
-                :loading="teachersListLoading"
-                :disabled="teachersListLoading"
-              />
+              <USelect v-model="addTeacherSelectedId" :items="addTeacherDropdownItems" placeholder="Select a teacher"
+                class="w-full" :loading="teachersListLoading" :disabled="teachersListLoading" />
             </UFormField>
             <div class="flex justify-end gap-2">
-              <UButton
-                type="button"
-                variant="outline"
-                :disabled="isAddTeacherSubmitting"
-                @click="isAddTeacherOpen = false"
-              >
+              <UButton type="button" variant="outline" :disabled="isAddTeacherSubmitting"
+                @click="isAddTeacherOpen = false">
                 Cancel
               </UButton>
-              <UButton
-                type="submit"
-                :loading="isAddTeacherSubmitting"
-                :disabled="!addTeacherSelectedId || isAddTeacherSubmitting"
-              >
+              <UButton type="submit" :loading="isAddTeacherSubmitting"
+                :disabled="!addTeacherSelectedId || isAddTeacherSubmitting">
                 Add Teacher
               </UButton>
             </div>
@@ -849,20 +866,12 @@ const journalcolumns: TableColumn<Journal>[] = [
             Are you sure you want to remove {{ teacherToUnassign.name }} from this section?
           </p>
           <div class="flex justify-end gap-2 mt-6">
-            <UButton
-              type="button"
-              variant="outline"
-              :disabled="isUnassignTeacherSubmitting"
-              @click="closeUnassignTeacherConfirm"
-            >
+            <UButton type="button" variant="outline" :disabled="isUnassignTeacherSubmitting"
+              @click="closeUnassignTeacherConfirm">
               Cancel
             </UButton>
-            <UButton
-              color="error"
-              :loading="isUnassignTeacherSubmitting"
-              :disabled="isUnassignTeacherSubmitting"
-              @click="confirmUnassignTeacher"
-            >
+            <UButton color="error" :loading="isUnassignTeacherSubmitting" :disabled="isUnassignTeacherSubmitting"
+              @click="confirmUnassignTeacher">
               Remove
             </UButton>
           </div>
@@ -879,20 +888,12 @@ const journalcolumns: TableColumn<Journal>[] = [
             Are you sure you want to remove {{ studentToUnassign.name }} from this section?
           </p>
           <div class="flex justify-end gap-2 mt-6">
-            <UButton
-              type="button"
-              variant="outline"
-              :disabled="isUnassignStudentSubmitting"
-              @click="closeUnassignStudentConfirm"
-            >
+            <UButton type="button" variant="outline" :disabled="isUnassignStudentSubmitting"
+              @click="closeUnassignStudentConfirm">
               Cancel
             </UButton>
-            <UButton
-              color="red"
-              :loading="isUnassignStudentSubmitting"
-              :disabled="isUnassignStudentSubmitting"
-              @click="confirmUnassignStudent"
-            >
+            <UButton color="red" :loading="isUnassignStudentSubmitting" :disabled="isUnassignStudentSubmitting"
+              @click="confirmUnassignStudent">
               Remove
             </UButton>
           </div>
@@ -909,21 +910,16 @@ const journalcolumns: TableColumn<Journal>[] = [
             <UContainer class="min-w-0">
               <div class="flex items-center justify-between">
                 <span class="text-lg font-semibold">Students ({{ studentData.length }})</span>
-                <UButton icon="i-lucide-plus" variant="ghost" color="neutral" square aria-label="Add student to section" @click="openAddStudentModal" />
+                <UButton icon="i-lucide-plus" variant="ghost" color="success" square aria-label="Add student to section"
+                  @click="openAddStudentModal" />
               </div>
               <UTable sticky ref="table" :data="studentData" :columns="columns" :loading="status === 'pending'" />
             </UContainer>
             <UContainer class="min-w-0">
               <div class="flex items-center justify-between">
                 <span class="text-xl font-semibold">Teachers ({{ teacherData.length }})</span>
-                <UButton
-                  icon="i-lucide-plus"
-                  variant="ghost"
-                  color="neutral"
-                  square
-                  aria-label="Add teacher to section"
-                  @click="openAddTeacherModal"
-                />
+                <UButton icon="i-lucide-plus" variant="ghost" color="success" square aria-label="Add teacher to section"
+                  @click="openAddTeacherModal" />
               </div>
               <UTable :data="teacherData" ref="table" :columns="teacher_columns" :loading="status === 'pending'" />
             </UContainer>
@@ -932,91 +928,105 @@ const journalcolumns: TableColumn<Journal>[] = [
 
         <!-- ASSESSMENTS TAB -->
         <template #assessment="{ item }">
+
+          <!-- Assessment Accordion -->
           <UContainer class="mt-5">
             <div class="flex items-center justify-between">
-              <span class="text-lg font-semibold">Class-wide Assessments</span>
-              <UButton icon="i-lucide-plus" variant="ghost" color="neutral" square aria-label="Add class-wide assessment" />
+              <span class="text-lg font-semibold">Assessments</span>
+              <UButton icon="i-lucide-plus" variant="ghost" color="success" square aria-label="Add Assessment" />
             </div>
 
-            <UTable v-model:expanded="groupAssessmentsExpanded" :data="groupAssessments || []" :columns="assessmentcolumns"
-              :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="groupAssessmentsStatus === 'pending'">
-              <template #empty-state>
-                <div class="flex flex-col items-center justify-center py-6 gap-3">
-                  <span class="italic text-sm">No class-wide assessments assigned to this section.</span>
-                </div>
+            <UAccordion :items="assessmentAccordionItems" multiple>
+              <template #class-assessments>
+
+                <UTable v-model:expanded="groupAssessmentsExpanded" :data="groupAssessments || []"
+                  :columns="assessmentcolumns" :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', }"
+                  class="flex-1 mt-4 border-t border-default" :loading="groupAssessmentsStatus === 'pending'">
+                  <template #empty-state>
+                    <div class="flex flex-col items-center justify-center py-6 gap-3">
+                      <span class="italic text-sm">No class-wide assessments assigned to this section.</span>
+                    </div>
+                  </template>
+                  <template #expanded="{ row }">
+                    <p class="p-4">{{ row.original.instructions }}</p>
+                  </template>
+                </UTable>
+
               </template>
-              <template #expanded="{ row }">
-                <p class="p-4">{{ row.original.instructions }}</p>
+
+              <template #individual-assessments>
+
+
+                <UTable v-model:expanded="individualAssessmentsExpanded" :data="individualAssessments || []"
+                  :columns="assessmentcolumns" :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', }"
+                  class="flex-1 mt-4 border-t border-default" :loading="individualAssessmentsStatus === 'pending'">
+                  <template #empty-state>
+                    <div class="flex flex-col items-center justify-center py-6 gap-3">
+                      <span class="italic text-sm">No individual assessments assigned to this section.</span>
+                    </div>
+                  </template>
+                  <template #expanded="{ row }">
+                    <p class="p-4">{{ row.original.instructions }}</p>
+                  </template>
+                </UTable>
+
               </template>
-            </UTable>
+            </UAccordion>
+
           </UContainer>
 
-          <UContainer class="mt-5">
-            <div class="flex items-center justify-between">
-              <span class="text-lg font-semibold">Individual Assessments</span>
-              <UButton icon="i-lucide-plus" variant="ghost" color="neutral" square aria-label="Add individual assessment" />
-            </div>
+          <!-- End Assessment Accordion -->
 
-            <UTable v-model:expanded="individualAssessmentsExpanded" :data="individualAssessments || []" :columns="assessmentcolumns"
-              :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="individualAssessmentsStatus === 'pending'">
-              <template #empty-state>
-                <div class="flex flex-col items-center justify-center py-6 gap-3">
-                  <span class="italic text-sm">No individual assessments assigned to this section.</span>
-                </div>
-              </template>
-              <template #expanded="{ row }">
-                  <p class="p-4">{{ row.original.instructions }}</p>
-              </template>
-            </UTable>
-          </UContainer>
+          <!-- Submission Accordion -->
 
           <UContainer class="mt-8">
             <div class="text-lg font-semibold">Class Submissions</div>
 
-            <div class="mt-4">
-              <div class="text-base font-medium text-gray-500 dark:text-gray-400 mb-2">Pending ({{ pendingSubmissions.length }})</div>
-              <UTable
-                :data="pendingSubmissions"
-                :columns="groupSubmissionColumns"
-                class="border-t border-default w-full table-fixed"
-                :loading="groupSubmissionsStatus === 'pending'"
-              >
-                <template #empty-state>
-                  <div class="flex flex-col items-center justify-center py-6 gap-3">
-                    <span class="italic text-sm">No pending group submissions.</span>
-                  </div>
-                </template>
-              </UTable>
-            </div>
 
-            <div class="mt-6">
-              <div class="text-base font-medium text-gray-500 dark:text-gray-400 mb-2">Submitted ({{ submittedSubmissions.length }})</div>
-              <UTable
-                :data="submittedSubmissions"
-                :columns="groupSubmissionColumns"
-                class="border-t border-default w-full table-fixed"
-                :loading="groupSubmissionsStatus === 'pending'"
-              >
-                <template #empty-state>
-                  <div class="flex flex-col items-center justify-center py-6 gap-3">
-                    <span class="italic text-sm">No submitted group submissions.</span>
-                  </div>
-                </template>
-              </UTable>
-            </div>
+            <UAccordion :items="submissionAccordionItems" multiple>
+              <template #pending-submissions>
+                <UTable :data="pendingSubmissions" :columns="groupSubmissionColumns"
+                  class="border-t border-default w-full table-fixed" :loading="groupSubmissionsStatus === 'pending'">
+                  <template #empty-state>
+                    <div class="flex flex-col items-center justify-center py-6 gap-3">
+                      <span class="italic text-sm">No pending group submissions.</span>
+                    </div>
+                  </template>
+                </UTable>
+              </template>
+
+              <template #submitted-submissions>
+
+
+                <div class="text-base font-medium text-gray-500 dark:text-gray-400 mb-2">Submitted ({{
+                  submittedSubmissions.length }})</div>
+                <UTable :data="submittedSubmissions" :columns="groupSubmissionColumns"
+                  class="border-t border-default w-full table-fixed" :loading="groupSubmissionsStatus === 'pending'">
+                  <template #empty-state>
+                    <div class="flex flex-col items-center justify-center py-6 gap-3">
+                      <span class="italic text-sm">No submitted group submissions.</span>
+                    </div>
+                  </template>
+                </UTable>
+              </template>
+            </UAccordion>
           </UContainer>
+
+          <!-- End Submission Accordion -->
+
         </template>
 
         <!-- JOURNALS TAB -->
         <template #journals="{ item }">
           <UContainer class="mt-5">
             <div class="flex items-center justify-between">
-              <span class="text-lg font-semibold">Assigned Practice Journals</span>
-              <UButton icon="i-lucide-plus" variant="ghost" color="neutral" square aria-label="Add practice journal" />
+              <span class="text-lg font-semibold">Assigned Practice Journals ({{ journalData.length }})</span>
+              <UButton icon="i-lucide-plus" variant="ghost" color="success" square aria-label="Add practice journal" />
             </div>
 
             <UTable v-model:expanded="journalsExpanded" :data="journalData" :columns="journalcolumns"
-              :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="journalEntriesStatus === 'pending'">
+              :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', }" class="flex-1 mt-4 border-t border-default"
+              :loading="journalEntriesStatus === 'pending'">
               <template #empty-state>
                 <div class="flex flex-col items-center justify-center py-6 gap-3">
                   <span class="italic text-sm">No journals assigned to this section.</span>
@@ -1025,7 +1035,7 @@ const journalcolumns: TableColumn<Journal>[] = [
               <template #expanded="{ row }">
                 <p class="p-4">{{ row.original.description }}</p>
               </template>
-            </UTable> 
+            </UTable>
           </UContainer>
 
         </template>

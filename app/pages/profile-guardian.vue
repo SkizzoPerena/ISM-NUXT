@@ -284,27 +284,23 @@ async function onDeleteGuardian() {
     <template v-else-if="guardian">
       <UPageCard>
         <div class="flex items-center">
-          <NuxtImg :src="guardian.profileImageURL || 'https://placehold.co/400x400'" :alt="`${guardian.firstName} ${guardian.lastName}`" width="200" height="200" class="rounded-full" fit="fill" preload/>
+          <NuxtImg :src="guardian.profileImageURL || 'https://placehold.co/400x400'"
+            :alt="`${guardian.firstName} ${guardian.lastName}`" width="200" height="200" class="rounded-full" fit="fill"
+            preload />
           <UContainer class="ml-8 w-full">
             <div class="flex items-start justify-between w-full">
-              <UPageHeader :title="`${guardian.firstName} ${guardian.lastName}`" style="border-bottom: 0; padding-bottom: 0;">
-                <div class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400" id="email">{{ guardian.email }}</div>
-                <div class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400" id="_id">#{{ guardian._id }}</div>
+              <UPageHeader :title="`${guardian.firstName} ${guardian.lastName}`"
+                style="border-bottom: 0; padding-bottom: 0;">
+                <div class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400" id="email">{{ guardian.email }}
+                </div>
+                <div class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400" id="_id">#{{ guardian._id }}
+                </div>
               </UPageHeader>
 
-              <div class="flex items-start gap-2">
-                <UButton
-                  icon="i-lucide-pencil"
-                  variant="ghost"
-                  aria-label="Edit guardian"
-                  @click="openEditModal"
-                />
-                <UButton
-                  icon="i-lucide-trash"            
-                  variant="ghost"
-                  aria-label="Delete guardian"
-                  @click="isDeleteOpen = true"
-                />
+              <div class="flex items-end gap-2">
+                <UButton icon="i-lucide-pencil" variant="ghost" aria-label="Edit guardian" @click="openEditModal" />
+                <UButton icon="i-lucide-trash-2" variant="ghost" aria-label="Delete guardian" color="error"
+                  @click="isDeleteOpen = true" />
               </div>
             </div>
           </UContainer>
@@ -312,18 +308,14 @@ async function onDeleteGuardian() {
       </UPageCard>
 
       <UPageCard class="mt-8" v-if="students && students.length > 0">
-        <template #header>
+
           <div class="flex items-center w-full">
             <h3 class="text-lg font-semibold">Assigned Students</h3>
             <div class="ml-auto shrink-0">
-              <UButton
-                label="Assign New Student"
-                icon="i-lucide-user-plus"
-                @click="openAssignModal"
-              />
+              <UButton label="Assign New Student" icon="i-lucide-user-plus" @click="openAssignModal" />
             </div>
           </div>
-        </template>
+
 
         <div class="space-y-4">
           <div v-for="student in students" :key="student._id" class="flex items-center gap-4 w-full">
@@ -334,29 +326,18 @@ async function onDeleteGuardian() {
               </NuxtLink>
               <span v-if="student.gender" class="text-gray-500 dark:text-gray-400 text-sm">{{ student.gender }}</span>
             </div>
-            <UButton
-              icon="i-lucide-trash"
-              variant="ghost"
-              aria-label="Remove student from guardian"
-              class="ml-auto shrink-0"
-              @click="openUnassignConfirm(student)"
-            />
+            <UButton icon="i-lucide-trash-2" variant="ghost" color="error" aria-label="Remove student from guardian"
+              class="ml-auto shrink-0" @click="openUnassignConfirm(student)" />
           </div>
         </div>
       </UPageCard>
       <UPageCard v-else-if="studentsStatus === 'success'" class="mt-8">
-        <template #header>
-          <div class="flex items-center w-full">
-            <h3 class="text-lg font-semibold">Assigned Students</h3>
-            <div class="ml-auto shrink-0">
-              <UButton
-                label="Assign New Student"
-                icon="i-lucide-user-plus"
-                @click="openAssignModal"
-              />
-            </div>
-          </div>
-        </template>
+        <div class="flex justify-between items-center w-full">
+          <div class="text-lg font-semibold">Assigned Students</div>
+
+          <UButton label="Assign New Student" icon="i-lucide-user-plus" @click="openAssignModal" />
+
+        </div>
         <p>No wards assigned to this guardian.</p>
       </UPageCard>
 
@@ -365,12 +346,7 @@ async function onDeleteGuardian() {
         <template #header>
           <div class="flex items-center justify-between w-full">
             <h3 class="text-lg font-semibold">Edit Guardian</h3>
-            <UButton
-              icon="i-lucide-x"
-              variant="ghost"
-              :disabled="isEditSubmitting"
-              @click="isEditOpen = false"
-            />
+            <UButton icon="i-lucide-x" variant="ghost" :disabled="isEditSubmitting" @click="isEditOpen = false" />
           </div>
         </template>
         <template #body>
@@ -392,12 +368,7 @@ async function onDeleteGuardian() {
             </UFormField>
 
             <div class="flex justify-end gap-2">
-              <UButton
-                type="button"
-                variant="outline"
-                :disabled="isEditSubmitting"
-                @click="isEditOpen = false"
-              >
+              <UButton type="button" variant="outline" :disabled="isEditSubmitting" @click="isEditOpen = false">
                 Cancel
               </UButton>
               <UButton type="submit" :loading="isEditSubmitting" :disabled="isEditSubmitting">
@@ -416,19 +387,10 @@ async function onDeleteGuardian() {
         <template #body>
           <p>Are you sure you want to delete this guardian? This action cannot be undone.</p>
           <div class="flex justify-end gap-2 mt-6">
-            <UButton
-              type="button"
-              variant="outline"
-              :disabled="isDeleteSubmitting"
-              @click="isDeleteOpen = false"
-            >
+            <UButton type="button" variant="outline" :disabled="isDeleteSubmitting" @click="isDeleteOpen = false">
               Cancel
             </UButton>
-            <UButton
-              :loading="isDeleteSubmitting"
-              :disabled="isDeleteSubmitting"
-              @click="onDeleteGuardian"
-            >
+            <UButton :loading="isDeleteSubmitting" :disabled="isDeleteSubmitting" @click="onDeleteGuardian">
               Delete
             </UButton>
           </div>
@@ -442,22 +404,14 @@ async function onDeleteGuardian() {
         </template>
         <template #body>
           <p v-if="studentToUnassign">
-            Are you sure you want to remove {{ studentToUnassign.firstName }} {{ studentToUnassign.lastName }} from this guardian?
+            Are you sure you want to remove {{ studentToUnassign.firstName }} {{ studentToUnassign.lastName }} from this
+            guardian?
           </p>
           <div class="flex justify-end gap-2 mt-6">
-            <UButton
-              type="button"
-              variant="outline"
-              :disabled="isUnassignSubmitting"
-              @click="closeUnassignConfirm"
-            >
+            <UButton type="button" variant="outline" :disabled="isUnassignSubmitting" @click="closeUnassignConfirm">
               Cancel
             </UButton>
-            <UButton
-              :loading="isUnassignSubmitting"
-              :disabled="isUnassignSubmitting"
-              @click="confirmUnassign"
-            >
+            <UButton :loading="isUnassignSubmitting" :disabled="isUnassignSubmitting" @click="confirmUnassign">
               Remove
             </UButton>
           </div>
@@ -469,12 +423,7 @@ async function onDeleteGuardian() {
         <template #header>
           <div class="flex items-center justify-between w-full">
             <h3 class="text-lg font-semibold">Assign New Student</h3>
-            <UButton
-              icon="i-lucide-x"
-              variant="ghost"
-              :disabled="isAssignSubmitting"
-              @click="isAssignOpen = false"
-            />
+            <UButton icon="i-lucide-x" variant="ghost" :disabled="isAssignSubmitting" @click="isAssignOpen = false" />
           </div>
         </template>
         <template #body>
@@ -483,27 +432,15 @@ async function onDeleteGuardian() {
           </div>
           <form v-else-if="assignStudentDropdownItems.length > 0" class="space-y-4" @submit.prevent="onSubmitAssign">
             <UFormField label="Student" name="studentId" required block>
-              <USelect
-                v-model="assignSelectedStudentId"
-                :items="assignStudentDropdownItems"
-                placeholder="Select a student"
-                class="w-full"
-              />
+              <USelect v-model="assignSelectedStudentId" :items="assignStudentDropdownItems"
+                placeholder="Select a student" class="w-full" />
             </UFormField>
             <div class="flex justify-end gap-2">
-              <UButton
-                type="button"
-                variant="outline"
-                :disabled="isAssignSubmitting"
-                @click="isAssignOpen = false"
-              >
+              <UButton type="button" variant="outline" :disabled="isAssignSubmitting" @click="isAssignOpen = false">
                 Cancel
               </UButton>
-              <UButton
-                type="submit"
-                :loading="isAssignSubmitting"
-                :disabled="!assignSelectedStudentId || isAssignSubmitting"
-              >
+              <UButton type="submit" :loading="isAssignSubmitting"
+                :disabled="!assignSelectedStudentId || isAssignSubmitting">
                 Assign Student
               </UButton>
             </div>

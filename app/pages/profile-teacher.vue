@@ -256,10 +256,11 @@ async function onDeleteTeacher() {
                   @click="openEditModal"
                 />
                 <UButton
-                  icon="i-lucide-trash"
+                  icon="i-lucide-trash-2"
                   variant="ghost"
                   aria-label="Delete teacher"
                   @click="isDeleteOpen = true"
+                  color="error"
                 />
               </div>
             </div>
@@ -268,17 +269,17 @@ async function onDeleteTeacher() {
       </UPageCard>
 
       <UPageCard class="mt-8">
-        <template #header>
+
           <div class="flex items-center justify-between w-full">
-            <h3 class="text-lg font-semibold">Assigned Sections</h3>
+            <div class="text-lg font-semibold">Assigned Sections</div>
             <UButton
               label="Assign New Section"
               icon="i-lucide-folder-plus"
-              variant="outline"
+              
               @click="openAssignSectionModal"
             />
           </div>
-        </template>
+
 
         <div v-if="teacher.assignedSections && teacher.assignedSections.length > 0" class="space-y-2">
           <div
@@ -290,7 +291,7 @@ async function onDeleteTeacher() {
               {{ section.name }}
             </NuxtLink>
             <UButton
-              icon="i-lucide-trash"
+              icon="i-lucide-trash-2"
               color="error"
               variant="ghost"
               square
