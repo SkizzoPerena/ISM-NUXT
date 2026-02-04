@@ -47,6 +47,7 @@ type Journal = {
   createdAt: string // Assignment creation date
   endDate: string // Assignment due date
   description: string
+  assignmentId?: string // id of journal-section record for DELETE
 }
 
 type Assessment = {
@@ -97,7 +98,7 @@ const { data: section, status } = await useAsyncData<SectionDetail>(
 )
 
 // Fetch assigned journals for the section
-const { data: journalEntries, status: journalEntriesStatus } = await useAsyncData<Journal[]>(
+const { data: journalEntries, status: journalEntriesStatus, refresh: refreshJournalEntries } = await useAsyncData<Journal[]>(
   `section-journals-${sectionId.value}`,
   () => $fetch(`${API_BASE}/api/admin/journal-sections/section/${sectionId.value}`, {
     headers: {
@@ -116,23 +117,23 @@ const { data: journalEntries, status: journalEntriesStatus } = await useAsyncDat
         return [];
       }
 
-      // Map the assignment data to the 'Journal' type for the table.
-      return assignments.map(assignment => {
-        // The actual journal details are nested under the 'journalId' property.
+      const result: Journal[] = [];
+      for (const assignment of assignments) {
         const journal = assignment.journalId;
         if (!journal) {
           console.warn('Journal assignment is missing journalId property:', assignment);
-          return null; // or handle as needed
+          continue;
         }
-
-        return {
-          _id: journal._id, // This is the ID of the journal template
+        result.push({
+          _id: journal._id,
           title: journal.title,
-          createdAt: assignment.createdAt, // The assignment creation date
-          endDate: assignment.endDate, // The due date for this assignment
+          createdAt: assignment.createdAt,
+          endDate: assignment.endDate,
           description: journal.description,
-        };
-      }).filter((j): j is Journal => j !== null);
+          assignmentId: assignment._id,
+        });
+      }
+      return result;
     },
     watch: [sectionId]
   }
@@ -703,6 +704,132 @@ async function confirmUnassignAssessment() {
   }
 }
 
+// Add Practice Journal to Section
+const isAddJournalOpen = ref(false)
+const availableJournals = ref<{ _id: string; title: string }[]>([])
+const journalsLoading = ref(false)
+const addJournalSelectedId = ref<string | undefined>(undefined)
+const addJournalStartDate = ref<string>('')
+const addJournalEndDate = ref<string>('')
+
+function openAddJournalModal() {
+  isAddJournalOpen.value = true
+  addJournalSelectedId.value = undefined
+  addJournalStartDate.value = ''
+  addJournalEndDate.value = ''
+  journalsLoading.value = true
+  $fetch(`${API_BASE}/api/admin/journals`, {
+    headers: { Authorization: `${useAuthToken().value}` }
+  })
+    .then((response: any) => {
+      const list = response?.data ?? response?.journals ?? response
+      const rows = Array.isArray(list) ? list : []
+      availableJournals.value = rows
+        .filter((j: any) => j && j._id && j.title)
+        .map((j: any) => ({ _id: j._id, title: j.title ?? '' }))
+      journalsLoading.value = false
+    })
+    .catch(() => {
+      journalsLoading.value = false
+      toast.add({ title: 'Error', description: 'Failed to load journals.', color: 'error' })
+    })
+}
+
+const addJournalDropdownItems = computed(() =>
+  availableJournals.value.map((j) => ({ label: j.title, value: j._id }))
+)
+
+// First allowed start date = today + 2 days (YYYY-MM-DD)
+const minStartDate = computed(() => {
+  const d = new Date()
+  d.setDate(d.getDate() + 2)
+  return d.toISOString().slice(0, 10)
+})
+
+// End date min = start date + 30 days; only meaningful when start date is set
+const minEndDate = computed(() => {
+  if (!addJournalStartDate.value) return ''
+  const start = new Date(addJournalStartDate.value)
+  start.setDate(start.getDate() + 30)
+  return start.toISOString().slice(0, 10)
+})
+
+const endDateDisabled = computed(() => !addJournalStartDate.value)
+
+// Assign button valid only when journal + start + end set and end >= start + 30
+const isAddJournalFormValid = computed(() => {
+  if (!addJournalSelectedId.value || !addJournalStartDate.value || !addJournalEndDate.value) return false
+  const minEnd = minEndDate.value
+  if (!minEnd) return false
+  return addJournalEndDate.value >= minEnd
+})
+
+const isAddJournalSubmitting = ref(false)
+
+async function confirmAssignJournal() {
+  if (!sectionId.value || !addJournalSelectedId.value || !addJournalStartDate.value || !addJournalEndDate.value || !isAddJournalFormValid.value || isAddJournalSubmitting.value) return
+  isAddJournalSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/journal-sections/assign`, {
+      method: 'POST',
+      headers: { Authorization: `${useAuthToken().value}` },
+      body: {
+        sectionId: sectionId.value,
+        journalId: addJournalSelectedId.value,
+        startDate: addJournalStartDate.value,
+        endDate: addJournalEndDate.value,
+      },
+    })
+    toast.add({ title: 'Success', description: 'Journal assigned to section.', color: 'success' })
+    isAddJournalOpen.value = false
+    addJournalSelectedId.value = undefined
+    addJournalStartDate.value = ''
+    addJournalEndDate.value = ''
+    await refreshJournalEntries()
+  } catch (error: any) {
+    toast.add({ title: 'Error', description: 'Failed to assign journal.', color: 'error' })
+  } finally {
+    isAddJournalSubmitting.value = false
+  }
+}
+
+// Unassign Journal from Section
+const journalToUnassign = ref<Journal | null>(null)
+const isUnassignJournalOpen = ref(false)
+const isUnassignJournalSubmitting = ref(false)
+
+function openUnassignJournal(journal: Journal) {
+  journalToUnassign.value = journal
+  isUnassignJournalOpen.value = true
+}
+
+function closeUnassignJournalConfirm() {
+  if (!isUnassignJournalSubmitting.value) {
+    isUnassignJournalOpen.value = false
+    journalToUnassign.value = null
+  }
+}
+
+async function confirmUnassignJournal() {
+  const assignmentId = journalToUnassign.value?.assignmentId ?? journalToUnassign.value?._id
+  if (!assignmentId || isUnassignJournalSubmitting.value) return
+  isUnassignJournalSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/journal-sections/${assignmentId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `${useAuthToken().value}` },
+    })
+    toast.add({ title: 'Success', description: 'Journal removed from section.', color: 'success' })
+    isUnassignJournalOpen.value = false
+    journalToUnassign.value = null
+    await refreshJournalEntries()
+  } catch (error: any) {
+    toast.add({ title: 'Error', description: 'Failed to remove journal.', color: 'error' })
+  } finally {
+    isUnassignJournalSubmitting.value = false
+  }
+}
+
 // START ASSESSMENT TAB SCRIPT
 
 const groupAssessmentColumns: TableColumn<Assessment>[] = [
@@ -924,7 +1051,8 @@ const journalcolumns: TableColumn<Journal>[] = [
           variant: 'ghost',
           icon: 'i-lucide-trash-2',
           square: true,
-          'aria-label': 'Unassign Assessment',
+          'aria-label': 'Unassign journal',
+          onClick: () => openUnassignJournal(row.original),
         })])
   },
 ]
@@ -1150,6 +1278,110 @@ const journalcolumns: TableColumn<Journal>[] = [
         </template>
       </UModal>
 
+      <!-- Add Practice Journal Modal -->
+      <UModal v-model:open="isAddJournalOpen" :dismissible="!isAddJournalSubmitting">
+        <template #header>
+          <div class="flex items-center justify-between w-full">
+            <h3 class="text-lg font-semibold">Assign Practice Journal</h3>
+            <UButton
+              icon="i-lucide-x"
+              variant="ghost"
+              :disabled="isAddJournalSubmitting"
+              @click="isAddJournalOpen = false"
+            />
+          </div>
+        </template>
+        <template #body>
+          <div class="space-y-6">
+            <UFormField label="Journal" name="journalId" required block>
+              <USelect
+                v-model="addJournalSelectedId"
+                :items="addJournalDropdownItems"
+                placeholder="Select a journal"
+                class="w-full"
+                :loading="journalsLoading"
+                :disabled="journalsLoading || isAddJournalSubmitting"
+              />
+            </UFormField>
+
+            <UFormField label="Start date" name="startDate" required block>
+              <UInput
+                v-model="addJournalStartDate"
+                type="date"
+                :min="minStartDate"
+                class="w-full"
+                :disabled="isAddJournalSubmitting"
+                @update:model-value="addJournalEndDate = ''"
+              />
+              <template #help>
+                <span class="text-xs text-gray-500 dark:text-gray-400">Earliest allowed: {{ minStartDate }} (today + 2 days)</span>
+              </template>
+            </UFormField>
+
+            <UFormField label="End date" name="endDate" required block>
+              <UInput
+                v-model="addJournalEndDate"
+                type="date"
+                :min="minEndDate"
+                :disabled="endDateDisabled || isAddJournalSubmitting"
+                class="w-full"
+              />
+              <template #help>
+                <span v-if="endDateDisabled" class="text-xs text-gray-500 dark:text-gray-400">Select a start date first.</span>
+                <span v-else class="text-xs text-gray-500 dark:text-gray-400">Must be at least 30 days after start date.</span>
+              </template>
+            </UFormField>
+
+            <div class="flex justify-end gap-2 pt-2">
+              <UButton
+                variant="outline"
+                :disabled="isAddJournalSubmitting"
+                @click="isAddJournalOpen = false"
+              >
+                Cancel
+              </UButton>
+              <UButton
+                :loading="isAddJournalSubmitting"
+                :disabled="!isAddJournalFormValid || isAddJournalSubmitting"
+                @click="confirmAssignJournal"
+              >
+                Assign
+              </UButton>
+            </div>
+          </div>
+        </template>
+      </UModal>
+
+      <!-- Unassign Journal Confirmation Modal -->
+      <UModal v-model:open="isUnassignJournalOpen" :dismissible="!isUnassignJournalSubmitting">
+        <template #header>
+          <h3 class="text-lg font-semibold">Remove journal from section</h3>
+        </template>
+        <template #body>
+          <p v-if="journalToUnassign">
+            Are you sure you want to remove {{ journalToUnassign.title }} from this section?
+          </p>
+          <div class="flex justify-end gap-2 mt-6">
+            <UButton
+              type="button"
+              variant="outline"
+              :disabled="isUnassignJournalSubmitting"
+              @click="closeUnassignJournalConfirm"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="error"
+              :loading="isUnassignJournalSubmitting"
+              :disabled="isUnassignJournalSubmitting"
+              @click="confirmUnassignJournal"
+            >
+              Remove
+            </UButton>
+          </div>
+        </template>
+      </UModal>
+
       <UModal v-model:open="isUnassignStudentOpen" :dismissible="!isUnassignStudentSubmitting">
         <template #header>
           <h3 class="text-lg font-semibold">Remove student from section</h3>
@@ -1299,7 +1531,14 @@ const journalcolumns: TableColumn<Journal>[] = [
           <UContainer class="mt-5">
             <div class="flex items-center justify-between">
               <span class="text-lg font-semibold">Assigned Practice Journals ({{ journalData.length }})</span>
-              <UButton icon="i-lucide-plus" variant="ghost" color="success" square aria-label="Add practice journal" />
+              <UButton
+                icon="i-lucide-plus"
+                variant="ghost"
+                color="success"
+                square
+                aria-label="Add practice journal"
+                @click="openAddJournalModal"
+              />
             </div>
 
             <UTable v-model:expanded="journalsExpanded" :data="journalData" :columns="journalcolumns"
