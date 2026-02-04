@@ -123,7 +123,8 @@ const userdropdown = computed(() => [
   [
     {
       label: 'Profile',
-      icon: 'i-lucide-user'
+      icon: 'i-lucide-user',
+      to: '/profile-admin'
     },
 
     {
