@@ -40,6 +40,7 @@ type Assessment = {
   title: string
   instructions: string
   createdAt: string
+  assignmentId?: string // id of assessment-student record for DELETE
 }
 
 type SpecialSubmission = {
@@ -263,6 +264,95 @@ async function confirmUnassignInstrument() {
   }
 }
 
+// Assign Special Assessment
+const isAssignAssessmentOpen = ref(false)
+const allAssessments = ref<{ _id: string; title: string }[]>([])
+const allAssessmentsLoading = ref(false)
+const assignAssessmentSelectedId = ref<string | undefined>(undefined)
+const isAssignAssessmentSubmitting = ref(false)
+
+function openAssignAssessmentModal() {
+  isAssignAssessmentOpen.value = true
+  assignAssessmentSelectedId.value = undefined
+  allAssessmentsLoading.value = true
+  $fetch(`${API_BASE}/api/admin/assessments`, {
+    headers: { Authorization: `${useAuthToken().value}` }
+  })
+    .then((response: any) => {
+      const list = response?.data ?? response?.assessments ?? response
+      const rows = Array.isArray(list) ? list : []
+      allAssessments.value = rows.map((a: any) => ({ _id: a._id, title: a.title ?? '' }))
+      allAssessmentsLoading.value = false
+    })
+    .catch(() => {
+      allAssessmentsLoading.value = false
+      toast.add({ title: 'Error', description: 'Failed to load assessments.', color: 'error' })
+    })
+}
+
+const assignAssessmentDropdownItems = computed(() =>
+  allAssessments.value.map((a) => ({ label: a.title, value: a._id }))
+)
+
+async function confirmAssignAssessment() {
+  if (!studentId.value || !assignAssessmentSelectedId.value || isAssignAssessmentSubmitting.value) return
+  isAssignAssessmentSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/assessment-students`, {
+      method: 'POST',
+      headers: { Authorization: `${useAuthToken().value}` },
+      body: { studentId: studentId.value, assessmentId: assignAssessmentSelectedId.value },
+    })
+    toast.add({ title: 'Success', description: 'Assessment assigned to student.', color: 'success' })
+    isAssignAssessmentOpen.value = false
+    assignAssessmentSelectedId.value = undefined
+    await refreshStudentAssessments()
+    await refreshSpecialSubmissions()
+  } catch (error: any) {
+    toast.add({ title: 'Error', description: 'Failed to assign assessment.', color: 'error' })
+  } finally {
+    isAssignAssessmentSubmitting.value = false
+  }
+}
+
+// Unassign Special Assessment
+const assessmentToUnassign = ref<Assessment | null>(null)
+const isUnassignAssessmentOpen = ref(false)
+const isUnassignAssessmentSubmitting = ref(false)
+
+function openUnassignAssessmentConfirm(assessment: Assessment) {
+  assessmentToUnassign.value = assessment
+  isUnassignAssessmentOpen.value = true
+}
+
+function closeUnassignAssessmentConfirm() {
+  if (!isUnassignAssessmentSubmitting.value) {
+    isUnassignAssessmentOpen.value = false
+    assessmentToUnassign.value = null
+  }
+}
+
+async function confirmUnassignAssessment() {
+  const assignmentId = assessmentToUnassign.value?.assignmentId ?? assessmentToUnassign.value?._id
+  if (!assignmentId || isUnassignAssessmentSubmitting.value) return
+  isUnassignAssessmentSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/assessment-students/${assignmentId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `${useAuthToken().value}` },
+    })
+    isUnassignAssessmentOpen.value = false
+    assessmentToUnassign.value = null
+    toast.add({ title: 'Success', description: 'Assessment removed from student.', color: 'success' })
+    await refreshStudentAssessments()
+    await refreshSpecialSubmissions()
+  } catch (error: any) {
+    toast.add({ title: 'Error', description: 'Failed to remove assessment.', color: 'error' })
+  } finally {
+    isUnassignAssessmentSubmitting.value = false
+  }
+}
+
 // Assign Guardian
 const isAssignGuardianOpen = ref(false)
 
@@ -455,9 +545,9 @@ const { data: instruments, status: instrumentsStatus, refresh: refreshInstrument
 )
 
 // Fetch assigned assessments for the student
-const { data: studentAssessments, status: studentAssessmentsStatus } = await useAsyncData<Assessment[]>(
+const { data: studentAssessments, status: studentAssessmentsStatus, refresh: refreshStudentAssessments } = await useAsyncData<Assessment[]>(
   `student-assessments-${studentId.value}`,
-  () => $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/assessment-students/${studentId.value}`, {
+  () => $fetch(`${API_BASE}/api/admin/assessment-students/${studentId.value}`, {
     headers: {
       Authorization: `${useAuthToken().value}`
     },
@@ -467,34 +557,34 @@ const { data: studentAssessments, status: studentAssessmentsStatus } = await use
   }),
   {
     transform: (response: any): Assessment[] => {
-      // The response contains an 'assignments' array.
       const assignments = response.assignments || response.data || response;
       if (!Array.isArray(assignments)) {
         console.error('Expected an array of student assessments, but received:', assignments);
         return [];
       }
-      return assignments.map((assignment: any) => {
-        // The actual assessment details are nested under 'assessmentId'
+      const result: Assessment[] = [];
+      for (const assignment of assignments) {
         const assessment = assignment.assessmentId;
-        // Ensure the nested assessment object and its _id exist before processing.
         if (!assessment || !assessment._id) {
           console.warn('Assessment assignment is missing assessmentId or its _id:', assignment);
-          return null;
+          continue;
         }
-        return {
+        result.push({
           _id: assessment._id,
+          assignmentId: assignment._id,
           title: assessment.title,
-          createdAt: assignment.createdAt, // Use the assignment creation date
+          createdAt: assignment.createdAt,
           instructions: assessment.instructions,
-        };
-      }).filter((a): a is Assessment => a !== null);
+        });
+      }
+      return result;
     },
     watch: [studentId]
   }
 );
 
 // Fetch special submissions for the student
-const { data: specialSubmissionsRaw, status: specialSubmissionsStatus } = await useAsyncData<SpecialSubmission[]>(
+const { data: specialSubmissionsRaw, status: specialSubmissionsStatus, refresh: refreshSpecialSubmissions } = await useAsyncData<SpecialSubmission[]>(
   `student-special-submissions-${studentId.value}`,
   () => $fetch(`${API_BASE}/api/admin/special-submission/student/${studentId.value}`, {
     headers: {
@@ -691,6 +781,21 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
         },
         onClick: () => row.toggleExpanded()
       })
+  },
+  {
+    id: 'unassign',
+    header: '',
+    cell: ({ row }) =>
+      row.original.assignmentId
+        ? h(UButton, {
+            icon: 'i-lucide-trash',
+            color: 'error' as const,
+            variant: 'ghost',
+            square: true,
+            'aria-label': 'Remove assessment from student',
+            onClick: () => openUnassignAssessmentConfirm(row.original)
+          })
+        : null
   },
 ]
 
@@ -1141,7 +1246,17 @@ async function onDeleteStudent() {
           <!-- ASSESSMENTS TAB -->
           <template #assessments="{ item }">
             <UContainer class="mt-5">
-              <div class="text-lg font-semibold">Assigned Special Assessments</div>
+              <div class="flex items-center justify-between">
+                <div class="text-lg font-semibold">Assigned Special Assessments</div>
+                <UButton
+                  icon="i-lucide-plus"
+                  variant="ghost"
+                  color="neutral"
+                  square
+                  aria-label="Assign assessment"
+                  @click="openAssignAssessmentModal"
+                />
+              </div>
 
               <UTable v-model:expanded="assessmentsExpanded" :data="studentAssessments || []" :columns="assessmentcolumns"
                 :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="studentAssessmentsStatus === 'pending'">
@@ -1502,6 +1617,83 @@ async function onDeleteStudent() {
               :loading="isUnassignInstrumentSubmitting"
               :disabled="isUnassignInstrumentSubmitting"
               @click="confirmUnassignInstrument"
+            >
+              Remove
+            </UButton>
+          </div>
+        </template>
+      </UModal>
+
+      <!-- Assign Special Assessment Modal -->
+      <UModal v-model:open="isAssignAssessmentOpen" :dismissible="!isAssignAssessmentSubmitting">
+        <template #header>
+          <div class="flex items-center justify-between w-full">
+            <h3 class="text-lg font-semibold">Assign Special Assessment</h3>
+            <UButton
+              icon="i-lucide-x"
+              variant="ghost"
+              :disabled="isAssignAssessmentSubmitting"
+              @click="isAssignAssessmentOpen = false"
+            />
+          </div>
+        </template>
+        <template #body>
+          <form class="space-y-4" @submit.prevent="confirmAssignAssessment">
+            <UFormField label="Assessment" name="assessmentId" required block>
+              <USelect
+                v-model="assignAssessmentSelectedId"
+                :items="assignAssessmentDropdownItems"
+                placeholder="Select an assessment"
+                class="w-full"
+                :loading="allAssessmentsLoading"
+                :disabled="allAssessmentsLoading"
+              />
+            </UFormField>
+            <div class="flex justify-end gap-2">
+              <UButton
+                type="button"
+                variant="outline"
+                :disabled="isAssignAssessmentSubmitting"
+                @click="isAssignAssessmentOpen = false"
+              >
+                Cancel
+              </UButton>
+              <UButton
+                type="button"
+                :loading="isAssignAssessmentSubmitting"
+                :disabled="!assignAssessmentSelectedId || isAssignAssessmentSubmitting"
+                @click="confirmAssignAssessment()"
+              >
+                Assign Assessment
+              </UButton>
+            </div>
+          </form>
+        </template>
+      </UModal>
+
+      <!-- Unassign Special Assessment Confirmation Modal -->
+      <UModal v-model:open="isUnassignAssessmentOpen" :dismissible="!isUnassignAssessmentSubmitting">
+        <template #header>
+          <h3 class="text-lg font-semibold">Remove assessment from student</h3>
+        </template>
+        <template #body>
+          <p v-if="assessmentToUnassign">
+            Are you sure you want to remove {{ assessmentToUnassign.title }} from this student?
+          </p>
+          <div class="flex justify-end gap-2 mt-6">
+            <UButton
+              type="button"
+              variant="outline"
+              :disabled="isUnassignAssessmentSubmitting"
+              @click="closeUnassignAssessmentConfirm"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="error"
+              :loading="isUnassignAssessmentSubmitting"
+              :disabled="isUnassignAssessmentSubmitting"
+              @click="confirmUnassignAssessment"
             >
               Remove
             </UButton>
