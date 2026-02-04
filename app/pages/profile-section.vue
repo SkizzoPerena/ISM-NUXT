@@ -54,6 +54,7 @@ type Assessment = {
   title: string
   createdAt: string // Assignment creation date
   instructions: string
+  assignmentId?: string // id of assessment-section record for DELETE
 }
 
 type GroupSubmission = {
@@ -138,7 +139,7 @@ const { data: journalEntries, status: journalEntriesStatus } = await useAsyncDat
 );
 
 // Fetch assigned group assessments for the section
-const { data: groupAssessments, status: groupAssessmentsStatus } = await useAsyncData<Assessment[]>(
+const { data: groupAssessments, status: groupAssessmentsStatus, refresh: refreshGroupAssessments } = await useAsyncData<Assessment[]>(
   `section-group-assessments-${sectionId.value}`,
   () => $fetch(`${API_BASE}/api/admin/assessment-sections/${sectionId.value}/group`, {
     headers: {
@@ -156,27 +157,29 @@ const { data: groupAssessments, status: groupAssessmentsStatus } = await useAsyn
         return [];
       }
 
-      return assignments.map(assignment => {
+      const result: Assessment[] = [];
+      for (const assignment of assignments) {
         const assessment = assignment.assessmentId;
         if (!assessment) {
           console.warn('Group assessment assignment is missing assessmentId property:', assignment);
-          return null;
+          continue;
         }
-
-        return {
+        result.push({
           _id: assessment._id,
           title: assessment.title,
           createdAt: assignment.createdAt,
           instructions: assessment.instructions,
-        };
-      }).filter((a): a is Assessment => a !== null);
+          assignmentId: assignment._id,
+        });
+      }
+      return result;
     },
     watch: [sectionId]
   }
 );
 
 // Fetch assigned individual assessments for the section
-const { data: individualAssessments, status: individualAssessmentsStatus } = await useAsyncData<Assessment[]>(
+const { data: individualAssessments, status: individualAssessmentsStatus, refresh: refreshIndividualAssessments } = await useAsyncData<Assessment[]>(
   `section-individual-assessments-${sectionId.value}`,
   () => $fetch(`${API_BASE}/api/admin/assessment-sections/${sectionId.value}/individual`, {
     headers: {
@@ -194,20 +197,22 @@ const { data: individualAssessments, status: individualAssessmentsStatus } = awa
         return [];
       }
 
-      return assignments.map(assignment => {
+      const result: Assessment[] = [];
+      for (const assignment of assignments) {
         const assessment = assignment.assessmentId;
         if (!assessment) {
           console.warn('Individual assessment assignment is missing assessmentId property:', assignment);
-          return null;
+          continue;
         }
-
-        return {
+        result.push({
           _id: assessment._id,
           title: assessment.title,
           createdAt: assignment.createdAt,
           instructions: assessment.instructions,
-        };
-      }).filter((a): a is Assessment => a !== null);
+          assignmentId: assignment._id,
+        });
+      }
+      return result;
     },
     watch: [sectionId]
   }
@@ -587,9 +592,120 @@ async function confirmUnassignStudent() {
   }
 }
 
+// Assign Assessment to Section (class or individual output)
+const isAssignAssessmentOpen = ref(false)
+const allAssessments = ref<{ _id: string; title: string }[]>([])
+const allAssessmentsLoading = ref(false)
+const assignAssessmentSelectedId = ref<string | undefined>(undefined)
+const assignAssessmentOutputType = ref<'class' | 'individual' | null>(null)
+
+function openAssignAssessmentModal() {
+  isAssignAssessmentOpen.value = true
+  assignAssessmentSelectedId.value = undefined
+  assignAssessmentOutputType.value = null
+  allAssessmentsLoading.value = true
+  $fetch(`${API_BASE}/api/admin/assessments`, {
+    headers: { Authorization: `${useAuthToken().value}` }
+  })
+    .then((response: any) => {
+      const list = response?.data ?? response?.assessments ?? response
+      const rows = Array.isArray(list) ? list : []
+      allAssessments.value = rows.map((a: any) => ({ _id: a._id, title: a.title ?? '' }))
+      allAssessmentsLoading.value = false
+    })
+    .catch(() => {
+      allAssessmentsLoading.value = false
+      toast.add({ title: 'Error', description: 'Failed to load assessments.', color: 'error' })
+    })
+}
+
+const assignAssessmentDropdownItems = computed(() =>
+  allAssessments.value.map((a) => ({ label: a.title, value: a._id }))
+)
+
+const isAssignAssessmentSubmitting = ref(false)
+
+async function confirmAssignAssessment() {
+  if (!sectionId.value || !assignAssessmentSelectedId.value || !assignAssessmentOutputType.value || isAssignAssessmentSubmitting.value) return
+  isAssignAssessmentSubmitting.value = true
+  const outputType = assignAssessmentOutputType.value
+  const url = outputType === 'individual'
+    ? `${API_BASE}/api/admin/assessment-sections/assign/individual`
+    : `${API_BASE}/api/admin/assessment-sections/assign/group`
+  try {
+    await $fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `${useAuthToken().value}` },
+      body: { sectionId: sectionId.value, assessmentId: assignAssessmentSelectedId.value },
+    })
+    toast.add({ title: 'Success', description: 'Assessment assigned to section.', color: 'success' })
+    isAssignAssessmentOpen.value = false
+    assignAssessmentSelectedId.value = undefined
+    assignAssessmentOutputType.value = null
+    if (outputType === 'individual') {
+      await refreshIndividualAssessments()
+    } else {
+      await refreshGroupAssessments()
+    }
+  } catch (error: any) {
+    toast.add({ title: 'Error', description: 'Failed to assign assessment.', color: 'error' })
+  } finally {
+    isAssignAssessmentSubmitting.value = false
+  }
+}
+
+// Unassign Assessment (group or individual)
+const assessmentToUnassign = ref<Assessment | null>(null)
+const unassignAssessmentType = ref<'group' | 'individual' | null>(null)
+const isUnassignAssessmentOpen = ref(false)
+const isUnassignAssessmentSubmitting = ref(false)
+
+function openUnassignAssessment(assessment: Assessment, type: 'group' | 'individual') {
+  assessmentToUnassign.value = assessment
+  unassignAssessmentType.value = type
+  isUnassignAssessmentOpen.value = true
+}
+
+function closeUnassignAssessmentConfirm() {
+  if (!isUnassignAssessmentSubmitting.value) {
+    isUnassignAssessmentOpen.value = false
+    assessmentToUnassign.value = null
+    unassignAssessmentType.value = null
+  }
+}
+
+async function confirmUnassignAssessment() {
+  const assignmentId = assessmentToUnassign.value?.assignmentId ?? assessmentToUnassign.value?._id
+  const type = unassignAssessmentType.value
+  if (!assignmentId || !type || isUnassignAssessmentSubmitting.value) return
+  isUnassignAssessmentSubmitting.value = true
+  const url = type === 'individual'
+    ? `${API_BASE}/api/admin/assessment-sections/unassign/individual/${assignmentId}`
+    : `${API_BASE}/api/admin/assessment-sections/unassign/group/${assignmentId}`
+  try {
+    await $fetch(url, {
+      method: 'DELETE',
+      headers: { Authorization: `${useAuthToken().value}` },
+    })
+    toast.add({ title: 'Success', description: 'Assessment removed from section.', color: 'success' })
+    isUnassignAssessmentOpen.value = false
+    assessmentToUnassign.value = null
+    unassignAssessmentType.value = null
+    if (type === 'individual') {
+      await refreshIndividualAssessments()
+    } else {
+      await refreshGroupAssessments()
+    }
+  } catch (error: any) {
+    toast.add({ title: 'Error', description: 'Failed to remove assessment.', color: 'error' })
+  } finally {
+    isUnassignAssessmentSubmitting.value = false
+  }
+}
+
 // START ASSESSMENT TAB SCRIPT
 
-const assessmentcolumns: TableColumn<Assessment>[] = [
+const groupAssessmentColumns: TableColumn<Assessment>[] = [
   {
     accessorKey: 'title',
     header: 'Title',
@@ -604,7 +720,6 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
       const dateValue = row.getValue('createdAt') as string
       if (!dateValue) return ''
       const date = new Date(dateValue)
-      // Format to something like: "Oct 10, 2026, 20:15"
       const formattedDate = new Intl.DateTimeFormat('en-US', {
         month: 'short',
         day: 'numeric',
@@ -640,6 +755,62 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
           icon: 'i-lucide-trash-2',
           square: true,
           'aria-label': 'Unassign Assessment',
+          onClick: () => openUnassignAssessment(row.original, 'group'),
+        })])
+  },
+]
+
+const individualAssessmentColumns: TableColumn<Assessment>[] = [
+  {
+    accessorKey: 'title',
+    header: 'Title',
+    meta: { class: { td: 'w-1/2' } },
+    cell: ({ row }) => h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('title') })
+  },
+  {
+    accessorKey: 'createdAt',
+    header: 'Date',
+    meta: { class: { td: 'w-1/2' } },
+    cell: ({ row }) => {
+      const dateValue = row.getValue('createdAt') as string
+      if (!dateValue) return ''
+      const date = new Date(dateValue)
+      const formattedDate = new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false
+      }).format(date)
+      return `Created: ${formattedDate}`
+    }
+  },
+  {
+    id: 'expand',
+    cell: ({ row }) =>
+      h('div', { class: 'flex items-center' }, [
+        h(UButton, {
+          color: 'neutral',
+          variant: 'ghost',
+          icon: 'i-lucide-chevron-down',
+          square: true,
+          'aria-label': 'Expand',
+          ui: {
+            leadingIcon: [
+              'transition-transform',
+              row.getIsExpanded() ? 'duration-200 rotate-180' : ''
+            ]
+          },
+          onClick: () => row.toggleExpanded()
+        }),
+        h(UButton, {
+          color: 'error',
+          variant: 'ghost',
+          icon: 'i-lucide-trash-2',
+          square: true,
+          'aria-label': 'Unassign Assessment',
+          onClick: () => openUnassignAssessment(row.original, 'individual'),
         })])
   },
 ]
@@ -879,6 +1050,106 @@ const journalcolumns: TableColumn<Journal>[] = [
       </UModal>
 
       <!-- Unassign Student Confirmation Modal -->
+      <!-- Assign Assessment Modal -->
+      <UModal v-model:open="isAssignAssessmentOpen" :dismissible="!isAssignAssessmentSubmitting">
+        <template #header>
+          <div class="flex items-center justify-between w-full">
+            <h3 class="text-lg font-semibold">Assign Assessment</h3>
+            <UButton
+              icon="i-lucide-x"
+              variant="ghost"
+              :disabled="isAssignAssessmentSubmitting"
+              @click="isAssignAssessmentOpen = false"
+            />
+          </div>
+        </template>
+        <template #body>
+          <div class="space-y-6">
+            <UFormField label="Assessment" name="assessmentId" required block>
+              <USelect
+                v-model="assignAssessmentSelectedId"
+                :items="assignAssessmentDropdownItems"
+                placeholder="Select an assessment"
+                class="w-full"
+                :loading="allAssessmentsLoading"
+                :disabled="allAssessmentsLoading"
+              />
+            </UFormField>
+
+            <UFormField label="Assign as" name="outputType" block>
+              <div class="flex gap-3">
+                <UButton
+                  :color="assignAssessmentOutputType === 'class' ? 'primary' : 'neutral'"
+                  :variant="assignAssessmentOutputType === 'class' ? 'solid' : 'outline'"
+                  class="flex-1"
+                  :disabled="isAssignAssessmentSubmitting"
+                  @click="assignAssessmentOutputType = 'class'"
+                >
+                  Class output
+                </UButton>
+                <UButton
+                  :color="assignAssessmentOutputType === 'individual' ? 'primary' : 'neutral'"
+                  :variant="assignAssessmentOutputType === 'individual' ? 'solid' : 'outline'"
+                  class="flex-1"
+                  :disabled="isAssignAssessmentSubmitting"
+                  @click="assignAssessmentOutputType = 'individual'"
+                >
+                  Individual output
+                </UButton>
+              </div>
+            </UFormField>
+
+            <div class="flex justify-end gap-2 pt-2">
+              <UButton
+                variant="outline"
+                :disabled="isAssignAssessmentSubmitting"
+                @click="isAssignAssessmentOpen = false"
+              >
+                Cancel
+              </UButton>
+              <UButton
+                :loading="isAssignAssessmentSubmitting"
+                :disabled="!assignAssessmentSelectedId || !assignAssessmentOutputType || isAssignAssessmentSubmitting"
+                @click="confirmAssignAssessment"
+              >
+                Assign
+              </UButton>
+            </div>
+          </div>
+        </template>
+      </UModal>
+
+      <!-- Unassign Assessment Confirmation Modal -->
+      <UModal v-model:open="isUnassignAssessmentOpen" :dismissible="!isUnassignAssessmentSubmitting">
+        <template #header>
+          <h3 class="text-lg font-semibold">Remove assessment from section</h3>
+        </template>
+        <template #body>
+          <p v-if="assessmentToUnassign">
+            Are you sure you want to remove {{ assessmentToUnassign.title }} from this section
+            ({{ unassignAssessmentType === 'group' ? 'class' : 'individual' }} output)?
+          </p>
+          <div class="flex justify-end gap-2 mt-6">
+            <UButton
+              type="button"
+              variant="outline"
+              :disabled="isUnassignAssessmentSubmitting"
+              @click="closeUnassignAssessmentConfirm"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="error"
+              :loading="isUnassignAssessmentSubmitting"
+              :disabled="isUnassignAssessmentSubmitting"
+              @click="confirmUnassignAssessment"
+            >
+              Remove
+            </UButton>
+          </div>
+        </template>
+      </UModal>
+
       <UModal v-model:open="isUnassignStudentOpen" :dismissible="!isUnassignStudentSubmitting">
         <template #header>
           <h3 class="text-lg font-semibold">Remove student from section</h3>
@@ -933,14 +1204,21 @@ const journalcolumns: TableColumn<Journal>[] = [
           <UContainer class="mt-5">
             <div class="flex items-center justify-between">
               <span class="text-lg font-semibold">Assessments</span>
-              <UButton icon="i-lucide-plus" variant="ghost" color="success" square aria-label="Add Assessment" />
+              <UButton
+                icon="i-lucide-plus"
+                variant="ghost"
+                color="success"
+                square
+                aria-label="Add Assessment"
+                @click="openAssignAssessmentModal"
+              />
             </div>
 
             <UAccordion :items="assessmentAccordionItems" multiple>
               <template #class-assessments>
 
                 <UTable v-model:expanded="groupAssessmentsExpanded" :data="groupAssessments || []"
-                  :columns="assessmentcolumns" :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', }"
+                  :columns="groupAssessmentColumns" :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', }"
                   class="flex-1 mt-4 border-t border-default" :loading="groupAssessmentsStatus === 'pending'">
                   <template #empty-state>
                     <div class="flex flex-col items-center justify-center py-6 gap-3">
@@ -958,7 +1236,7 @@ const journalcolumns: TableColumn<Journal>[] = [
 
 
                 <UTable v-model:expanded="individualAssessmentsExpanded" :data="individualAssessments || []"
-                  :columns="assessmentcolumns" :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', }"
+                  :columns="individualAssessmentColumns" :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', }"
                   class="flex-1 mt-4 border-t border-default" :loading="individualAssessmentsStatus === 'pending'">
                   <template #empty-state>
                     <div class="flex flex-col items-center justify-center py-6 gap-3">
