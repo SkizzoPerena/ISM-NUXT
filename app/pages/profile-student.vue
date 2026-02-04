@@ -159,8 +159,111 @@ const assignSectionDropdownItems = computed(() =>
   (allSections.value ?? []).map((s) => ({ label: s.name, value: s._id }))
 )
 
-// Assign Instrument / Guardian (UI hooks; endpoints TBD)
+// Assign Instrument
 const isAssignInstrumentOpen = ref(false)
+type AvailableInstrumentOption = { _id: string; instrumentName: string }
+const availableInstruments = ref<AvailableInstrumentOption[]>([])
+const availableInstrumentsLoading = ref(false)
+const assignInstrumentSelectedId = ref<string | undefined>(undefined)
+const assignInstrumentProficiency = ref<string | undefined>(undefined)
+const isAssignInstrumentSubmitting = ref(false)
+
+const proficiencyOptions = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED']
+
+function openAssignInstrumentModal() {
+  isAssignInstrumentOpen.value = true
+  assignInstrumentSelectedId.value = undefined
+  assignInstrumentProficiency.value = undefined
+  availableInstrumentsLoading.value = true
+  $fetch(`${API_BASE}/api/admin/instruments`, {
+    headers: { Authorization: `${useAuthToken().value}` }
+  })
+    .then((response: any) => {
+      const list = response?.data ?? response?.instruments ?? response
+      const rows = Array.isArray(list) ? list : []
+      availableInstruments.value = rows.map((i: any) => ({
+        _id: i._id,
+        instrumentName: i.instrumentName ?? i.name ?? ''
+      }))
+      availableInstrumentsLoading.value = false
+    })
+    .catch((error) => {
+      console.error('Error loading instruments', error)
+      availableInstrumentsLoading.value = false
+      toast.add({ title: 'Error', description: 'Failed to load instruments.', color: 'error' })
+    })
+}
+
+const assignInstrumentDropdownItems = computed(() =>
+  availableInstruments.value.map((i) => ({ label: i.instrumentName, value: i._id }))
+)
+
+async function confirmAssignInstrument() {
+  console.error('[Assign instrument] confirmAssignInstrument called')
+  const sid = studentId.value
+  const iid = assignInstrumentSelectedId.value
+  const prof = assignInstrumentProficiency.value
+  if (!sid || !iid || !prof || isAssignInstrumentSubmitting.value) return
+  isAssignInstrumentSubmitting.value = true
+  try {
+    const body = { student: sid, instrument: iid, proficiency: prof }
+    console.error('[Assign instrument] payload', body)
+    await $fetch(`${API_BASE}/api/admin/student-instrument`, {
+      method: 'POST',
+      headers: { Authorization: `${useAuthToken().value}` },
+      body,
+    })
+    toast.add({ title: 'Success', description: 'Instrument assigned to student.', color: 'success' })
+    isAssignInstrumentOpen.value = false
+    assignInstrumentSelectedId.value = undefined
+    assignInstrumentProficiency.value = undefined
+    await refreshInstruments()
+  } catch (error: any) {
+    console.error('[Assign instrument] error', error?.data ?? error?.message ?? error)
+    toast.add({ title: 'Error', description: 'Failed to assign instrument.', color: 'error' })
+  } finally {
+    isAssignInstrumentSubmitting.value = false
+  }
+}
+
+// Unassign instrument from student
+const instrumentToUnassign = ref<InstrumentInfo | null>(null)
+const isUnassignInstrumentOpen = ref(false)
+const isUnassignInstrumentSubmitting = ref(false)
+
+function openUnassignInstrumentConfirm(instrument: InstrumentInfo) {
+  instrumentToUnassign.value = instrument
+  isUnassignInstrumentOpen.value = true
+}
+
+function closeUnassignInstrumentConfirm() {
+  if (!isUnassignInstrumentSubmitting.value) {
+    isUnassignInstrumentOpen.value = false
+    instrumentToUnassign.value = null
+  }
+}
+
+async function confirmUnassignInstrument() {
+  if (!instrumentToUnassign.value || isUnassignInstrumentSubmitting.value) return
+  isUnassignInstrumentSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/student-instrument/${instrumentToUnassign.value._id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `${useAuthToken().value}` },
+    })
+    isUnassignInstrumentOpen.value = false
+    instrumentToUnassign.value = null
+    toast.add({ title: 'Success', description: 'Instrument removed from student.', color: 'success' })
+    await refreshInstruments()
+  } catch (error: any) {
+    console.error('[Unassign instrument] error', error?.data ?? error?.message ?? error)
+    toast.add({ title: 'Error', description: 'Failed to remove instrument.', color: 'error' })
+  } finally {
+    isUnassignInstrumentSubmitting.value = false
+  }
+}
+
+// Assign Guardian
 const isAssignGuardianOpen = ref(false)
 
 type AvailableGuardianOption = {
@@ -327,9 +430,9 @@ async function confirmUnassignGuardian() {
 }
 
 // Fetch assigned instruments for the student
-const { data: instruments, status: instrumentsStatus } = await useAsyncData<InstrumentInfo[]>(
+const { data: instruments, status: instrumentsStatus, refresh: refreshInstruments } = await useAsyncData<InstrumentInfo[]>(
   `student-instruments-${studentId.value}`,
-  () => $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/student-instrument/${studentId.value}`, {
+  () => $fetch(`${API_BASE}/api/admin/student-instrument/${studentId.value}`, {
     headers: {
       Authorization: `${useAuthToken().value}`
     },
@@ -947,16 +1050,25 @@ async function onDeleteStudent() {
                       color="neutral"
                       square
                       aria-label="Assign instrument"
-                      @click="isAssignInstrumentOpen = true"
+                      @click="openAssignInstrumentModal"
                     />
                   </div>
 
                   <div class="space-y-2 mt-4">
-                    <div v-for="instrument in instruments" :key="instrument._id">
+                    <div v-for="instrument in instruments" :key="instrument._id" class="flex items-center gap-2">
                       <span class="text-gray-900 dark:text-white">
                         {{ instrument.instrumentName }}
                         <UBadge v-if="instrument.proficiency" :color="getProficiencyColor(instrument.proficiency)" variant="subtle" class="ml-2">{{ instrument.proficiency }}</UBadge>
                       </span>
+                      <UButton
+                        icon="i-lucide-trash"
+                        color="error"
+                        variant="ghost"
+                        square
+                        aria-label="Remove instrument from student"
+                        class="ml-auto shrink-0"
+                        @click="openUnassignInstrumentConfirm(instrument)"
+                      />
                     </div>
                   </div>
                 </UContainer>
@@ -969,7 +1081,7 @@ async function onDeleteStudent() {
                       color="neutral"
                       square
                       aria-label="Assign instrument"
-                      @click="isAssignInstrumentOpen = true"
+                      @click="openAssignInstrumentModal"
                     />
                   </div>
                   <p class="mt-4">No instruments assigned to this student.</p>
@@ -1313,15 +1425,87 @@ async function onDeleteStudent() {
       </UModal>
 
       <!-- Assign Instrument Modal -->
-      <UModal v-model:open="isAssignInstrumentOpen">
+      <UModal v-model:open="isAssignInstrumentOpen" :dismissible="!isAssignInstrumentSubmitting">
         <template #header>
           <div class="flex items-center justify-between w-full">
             <h3 class="text-lg font-semibold">Assign Instrument</h3>
-            <UButton icon="i-lucide-x" variant="ghost" @click="isAssignInstrumentOpen = false" />
+            <UButton
+              icon="i-lucide-x"
+              variant="ghost"
+              :disabled="isAssignInstrumentSubmitting"
+              @click="isAssignInstrumentOpen = false"
+            />
           </div>
         </template>
         <template #body>
-          <p class="text-gray-500 dark:text-gray-400">Instrument assignment UI goes here.</p>
+          <form class="space-y-4" @submit.prevent="confirmAssignInstrument">
+            <UFormField label="Instrument" name="instrumentId" required block>
+              <USelect
+                v-model="assignInstrumentSelectedId"
+                :items="assignInstrumentDropdownItems"
+                placeholder="Select an instrument"
+                class="w-full"
+                :loading="availableInstrumentsLoading"
+                :disabled="availableInstrumentsLoading"
+              />
+            </UFormField>
+            <UFormField label="Proficiency" name="proficiency" required block>
+              <USelect
+                v-model="assignInstrumentProficiency"
+                :items="proficiencyOptions.map((p) => ({ label: p, value: p }))"
+                placeholder="Select proficiency"
+                class="w-full"
+              />
+            </UFormField>
+            <div class="flex justify-end gap-2">
+              <UButton
+                type="button"
+                variant="outline"
+                :disabled="isAssignInstrumentSubmitting"
+                @click="isAssignInstrumentOpen = false"
+              >
+                Cancel
+              </UButton>
+              <UButton
+                type="button"
+                :loading="isAssignInstrumentSubmitting"
+                :disabled="!assignInstrumentSelectedId || !assignInstrumentProficiency || isAssignInstrumentSubmitting"
+                @click="confirmAssignInstrument()"
+              >
+                Assign Instrument
+              </UButton>
+            </div>
+          </form>
+        </template>
+      </UModal>
+
+      <!-- Unassign Instrument Confirmation Modal -->
+      <UModal v-model:open="isUnassignInstrumentOpen" :dismissible="!isUnassignInstrumentSubmitting">
+        <template #header>
+          <h3 class="text-lg font-semibold">Remove instrument from student</h3>
+        </template>
+        <template #body>
+          <p v-if="instrumentToUnassign">
+            Are you sure you want to remove {{ instrumentToUnassign.instrumentName }} from this student?
+          </p>
+          <div class="flex justify-end gap-2 mt-6">
+            <UButton
+              type="button"
+              variant="outline"
+              :disabled="isUnassignInstrumentSubmitting"
+              @click="closeUnassignInstrumentConfirm"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="error"
+              :loading="isUnassignInstrumentSubmitting"
+              :disabled="isUnassignInstrumentSubmitting"
+              @click="confirmUnassignInstrument"
+            >
+              Remove
+            </UButton>
+          </div>
         </template>
       </UModal>
 
