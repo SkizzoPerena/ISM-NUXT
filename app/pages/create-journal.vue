@@ -5,6 +5,9 @@ definePageMeta({
     layout: 'dashboard',
 })
 
+const API_BASE = 'https://noteworthy-z9k0.onrender.com'
+const toast = useToast()
+
 const questionType = ref(['MULTIPLE CHOICE', 'YES/NO', 'ESSAY'])
 
 const journal = ref({
@@ -13,12 +16,13 @@ const journal = ref({
     teacherId: ''
 })
 
+const isSubmitting = ref(false)
+
 type Question = {
     id: number;
     type: string;
     text: string;
     options?: { value: string }[];
-    answer?: string; // For essay
 };
 
 type TeacherInfo = {
@@ -86,10 +90,66 @@ function removeOption(question: Question, optionIndex: number) {
         question.options.splice(optionIndex, 1);
     }
 }
+
+function validate(): string | null {
+    if (!journal.value.title?.trim()) return 'Title is required.'
+    if (!journal.value.description?.trim()) return 'Description is required.'
+    if (!journal.value.teacherId?.trim()) return 'Assigned teacher is required.'
+    for (const [i, q] of questions.value.entries()) {
+        if (!q.text?.trim()) return `Question ${i + 1}: question text is required.`
+        if (!q.type?.trim()) return `Question ${i + 1}: question type is required.`
+        if (q.type === 'MULTIPLE CHOICE' && q.options?.length) {
+            const filled = q.options.map((o) => o.value?.trim()).filter(Boolean)
+            if (filled.length < 2) return `Question ${i + 1}: Multiple Choice requires at least two choices.`
+        }
+    }
+    return null
+}
+
+function buildPayload() {
+    return {
+        teacherId: journal.value.teacherId.trim(),
+        title: journal.value.title.trim(),
+        description: journal.value.description.trim(),
+        questions: questions.value.map((q) => {
+            const base: { questionText: string; questionType: string; choices?: string[] } = {
+                questionText: q.text.trim(),
+                questionType: q.type.trim(),
+            }
+            if (q.type === 'MULTIPLE CHOICE' && q.options?.length) {
+                base.choices = q.options.map((o) => o.value?.trim()).filter((v): v is string => !!v)
+            }
+            return base
+        }),
+    }
+}
+
+async function createJournal() {
+    const err = validate()
+    if (err) {
+        toast.add({ title: 'Validation failed', description: err, color: 'error' })
+        return
+    }
+    if (isSubmitting.value) return
+    isSubmitting.value = true
+    try {
+        await $fetch(`${API_BASE}/api/admin/journals`, {
+            method: 'POST',
+            headers: { Authorization: `${useAuthToken().value}` },
+            body: buildPayload(),
+        })
+        toast.add({ title: 'Success', description: 'Journal created.', color: 'success' })
+        await navigateTo('/journals')
+    } catch (error) {
+        console.error('Error creating journal:', error)
+        toast.add({ title: 'Error', description: 'Failed to create journal.', color: 'error' })
+    } finally {
+        isSubmitting.value = false
+    }
+}
 </script>
 
 <template>
-
     <UContainer>
         <UPageCard>
             <div class="text-lg font-bold">Create Journal</div>
@@ -97,13 +157,10 @@ function removeOption(question: Question, optionIndex: number) {
             <UPageGrid>
                 <UForm>
                     <UFormGroup>
-
                         <UFormField label="Title" name="title" required block class="w-full">
-
                             <UInput label="Title" name="title" v-model="journal.title" placeholder="Enter journal title"
                                 class="w-full" />
                         </UFormField>
-
                         <UFormField label="Assigned Teacher" name="teacher" required class="mt-4">
                             <USelect v-model="journal.teacherId"
                                 placeholder="Select a teacher"
@@ -114,7 +171,6 @@ function removeOption(question: Question, optionIndex: number) {
                                 class="w-full"
                                 />
                         </UFormField>
-
                         <UFormField label="Description" name="description" required class="mt-4">
                             <UTextarea v-model="journal.description" placeholder="Enter journal description"
                                 class="w-full" />
@@ -140,8 +196,6 @@ function removeOption(question: Question, optionIndex: number) {
                                     :items="questionType" />
                             </UFormField>
                         </UForm>
-
-
                             <!-- Conditional fields based on question type -->
                             <div v-if="question.type === 'MULTIPLE CHOICE'">
                                 <UForm label="Options" class="mt-2">
@@ -161,23 +215,16 @@ function removeOption(question: Question, optionIndex: number) {
                                     provided.</p>
                             </div>
                             <div v-else-if="question.type === 'ESSAY'">
-                                <UFormField label="Keywords / Sample Answer" name="essayAnswer" class="mt-4">
-                                    <UTextarea v-model="question.answer"  class="mt-2 w-full" placeholder="Enter keywords or a sample answer for grading reference" />
-                                </UFormField>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Free-form essay response.</p>
                             </div>
                         </UForm>
                     </UPageCard>
-                    <UButton @click="addQuestion" variant="subtle" icon="i-lucide-square-plus" block>Add new question</UButton>
+                    <UButton @click="addQuestion" variant="subtle" block>Add new question</UButton>
                 </div>
-
             </UPageGrid>
         </UPageCard>
-
         <UPageCard class="mt-4">
-            <UButton size="lg" icon="i-lucide-circle-check" block>Finish Creating Journal</UButton>
+            <UButton size="lg" icon="i-lucide-circle-check" block :loading="isSubmitting" @click="createJournal">Finish Creating Journal</UButton>
         </UPageCard>
-
-
     </UContainer>
-
 </template>

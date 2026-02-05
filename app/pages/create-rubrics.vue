@@ -20,7 +20,6 @@ type Question = {
   type: string
   text: string
   options?: { value: string }[]
-  answer?: string
 }
 
 const questions = ref<Question[]>([
@@ -175,9 +174,7 @@ async function createRubric() {
                                     provided.</p>
                             </div>
                             <div v-else-if="question.type === 'ENUMERATION'">
-                                <UFormField label="Keywords / Sample Answer" name="enumerationAnswer" class="mt-4">
-                                    <UTextarea v-model="question.answer"  class="mt-2 w-full" placeholder="Enter keywords or a sample answer for grading reference" />
-                                </UFormField>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Free-form enumeration response.</p>
                             </div>
                         </UForm>
                     </UPageCard>
