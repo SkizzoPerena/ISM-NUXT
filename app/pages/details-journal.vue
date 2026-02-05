@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ref, reactive, watch, computed } from 'vue'
-import type { TabsItem, FormError, FormSubmitEvent } from '@nuxt/ui'
+import type { TabsItem, FormError } from '@nuxt/ui'
 
 definePageMeta({
   layout: 'dashboard',
@@ -245,26 +245,35 @@ function removeOption(question: EditableQuestion, optionIndex: number) {
   }
 }
 
-async function onSubmitEdit(event: FormSubmitEvent<EditSchema>) {
+async function onSubmitEdit() {
   if (!journalId.value || isEditSubmitting.value) return
+  const errors = validateEdit(editState)
+  if (errors.length > 0) {
+    toast.add({ title: 'Validation failed', description: errors[0]?.message ?? 'Please fix the form errors.', color: 'error' })
+    return
+  }
   isEditSubmitting.value = true
   try {
     const payload = {
-      title: editState.title,
-      description: editState.description,
-      teacherId: editState.teacherId,
-      questions: editState.questions.map(q => ({
-        questionText: q.text,
-        questionType: q.type,
-        choices: q.type === 'MULTIPLE CHOICE' ? q.options?.map(o => o.value).filter(Boolean) : undefined,
-        answer: q.type === 'ESSAY' ? q.answer : undefined,
-      }))
+      title: editState.title.trim(),
+      description: editState.description.trim(),
+      questions: editState.questions.map(q => {
+        const base: { questionText: string; questionType: string; choices?: string[] } = {
+          questionText: q.text.trim(),
+          questionType: q.type.trim(),
+        }
+        if (q.type === 'MULTIPLE CHOICE' && q.options?.length) {
+          base.choices = q.options.map(o => o.value?.trim()).filter((v): v is string => !!v)
+        }
+        return base
+      }),
     }
 
     await $fetch(`${API_BASE}/api/admin/journals/${journalId.value}`, {
       method: 'PATCH',
       headers: {
         Authorization: `${useAuthToken().value}`,
+        'Content-Type': 'application/json',
       },
       body: payload,
     })
@@ -284,7 +293,7 @@ async function onDeleteJournal() {
   if (!journalId.value || isDeleteSubmitting.value) return
   isDeleteSubmitting.value = true
   try {
-    await $fetch(`${API_BASE}/api/admin/journals/${journalId.value}`, {
+    await $fetch(`${API_BASE}/api/admin/journals/${journalId.value}/archive`, {
       method: 'DELETE',
       headers: {
         Authorization: `${useAuthToken().value}`,
@@ -448,7 +457,7 @@ async function onDeleteJournal() {
         <UButton type="button" block variant="outline" :disabled="isEditSubmitting" @click="isEditOpen = false">
           Cancel
         </UButton>
-        <UButton type="submit" block :loading="isEditSubmitting" :disabled="isEditSubmitting">
+        <UButton type="button" block :loading="isEditSubmitting" :disabled="isEditSubmitting" @click="onSubmitEdit">
           Update Journal
         </UButton>
 
