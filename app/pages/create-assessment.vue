@@ -231,15 +231,20 @@ async function createAssessment() {
                                 class="w-full" block
                                 />
                         </UFormField>
-                        <UFormField label="Supplementary image (optional)" name="sup image" class="mt-4">
-                        <input
-                            type="file"
-                            accept="image/*"
-                            class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                            @change="onSupplementaryImageChange"
-                        />
-                        <p v-if="supplementaryImageFile" class="text-sm text-gray-500 mt-1">{{ supplementaryImageFile.name }}</p>
-                    </UFormField>
+                <UFormField label="Supplementary image (optional)" name="sup image" class="mt-4">
+                  <div class="space-y-3">
+                    <UFileUpload
+                      v-model="supplementaryImageFile"
+                      label="Click or drag to upload image"
+                      accept="image/*"
+                      class="w-full"
+                    />
+                    <div v-if="supplementaryImageFile" class="flex items-center gap-2">
+                      
+                      <span class="text-sm text-gray-500">{{ supplementaryImageFile.name }}</span>
+                    </div>
+                  </div>
+                </UFormField>
                 </div>
                 
                 <div>

@@ -429,34 +429,8 @@ async function onDeleteAssessment() {
                       class="w-full"
                     />
                     <div v-if="supplementaryImageFile" class="flex items-center gap-2">
-                      <UButton
-                        size="sm"
-                        variant="outline"
-                        color="neutral"
-                        icon="i-lucide-undo-2"
-                        @click="clearNewSupplementaryImage"
-                      >
-                        Remove new image (use current)
-                      </UButton>
+                      
                       <span class="text-sm text-gray-500">{{ supplementaryImageFile.name }}</span>
-                    </div>
-                    <div class="mt-2">
-                      <template v-if="supplementaryImageFile && supplementaryImagePreviewUrl">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">New image preview:</p>
-                        <img
-                          :src="supplementaryImagePreviewUrl"
-                          alt="New image preview"
-                          class="rounded-lg max-w-full max-h-64 object-contain border border-gray-200 dark:border-gray-700"
-                        />
-                      </template>
-                      <template v-else-if="editState.supplementaryImageURL?.trim()">
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Current supplementary image:</p>
-                        <img
-                          :src="editState.supplementaryImageURL"
-                          alt="Current supplementary image"
-                          class="rounded-lg max-w-full max-h-64 object-contain border border-gray-200 dark:border-gray-700"
-                        />
-                      </template>
                     </div>
                   </div>
                 </UFormField>
