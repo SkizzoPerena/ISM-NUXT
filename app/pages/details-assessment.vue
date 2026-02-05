@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import type { TabsItem, FormError, FormSubmitEvent } from '@nuxt/ui'
 
 definePageMeta({
@@ -33,10 +33,7 @@ type AssessmentDetail = {
   rubricId: string
   supplementaryImageURL: string
   supplementaryLinks: string[]
-  teacherId: {
-    _id: string
-    email: string
-  }
+  teacherId: string | { _id: string; email: string }
   rubric: { // Added rubric property
     _id: string;
     title: string;
@@ -104,8 +101,9 @@ const { data, status } = await useAsyncData<AssessmentPageData | null>(
       rubric: rubric,
     };
 
-    if (assessmentDetail.teacherId?._id) {
-      console.log(`[Teacher Fetch] assessment has teacherId: ${assessmentDetail.teacherId._id}. Fetching all teachers.`);
+    const teacherIdStr = typeof assessmentDetail.teacherId === 'string' ? assessmentDetail.teacherId : assessmentDetail.teacherId?._id
+    if (teacherIdStr) {
+      console.log(`[Teacher Fetch] assessment has teacherId: ${teacherIdStr}. Fetching all teachers.`);
       const teachersResponse: any = await $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/teacher`, {
         headers: { Authorization: `${useAuthToken().value}` },
       });
@@ -113,12 +111,12 @@ const { data, status } = await useAsyncData<AssessmentPageData | null>(
 
       const allTeachersData = teachersResponse?.data || teachersResponse?.teachers || teachersResponse;
       if (Array.isArray(allTeachersData)) {
-        const foundTeacher = allTeachersData.find((t: any) => t._id === assessmentDetail.teacherId._id);
+        const foundTeacher = allTeachersData.find((t: any) => t._id === teacherIdStr);
         if (foundTeacher) {
           // Return the combined data if teacher is found
           return { assessment: assessmentDetail, teacher: foundTeacher };
         } else {
-          console.error(`Teacher with ID ${assessmentDetail.teacherId._id} not found in the list.`);
+          console.error(`Teacher with ID ${teacherIdStr} not found in the list.`);
         }
       } else {
         console.error('Expected an array of teachers, but got:', allTeachersData);
@@ -238,11 +236,14 @@ function validateEdit(state: Partial<EditSchema>): FormError[] {
 
 function openEditModal() {
   if (!assessment.value) return
-  editState.title = assessment.value.title
-  editState.instructions = assessment.value.instructions
-  editState.teacherId = assessment.value.teacherId?._id || ''
-  editState.rubricId = assessment.value.rubricId || ''
-  editState.supplementaryLinks = (assessment.value.supplementaryLinks || []).map(link => ({
+  const a = assessment.value
+  editState.title = a.title
+  editState.instructions = a.instructions
+  // Pre-select current teacher: support both object { _id } and string id from API
+  const currentTeacherId = typeof a.teacherId === 'string' ? a.teacherId : (a.teacherId?._id ?? '')
+  editState.teacherId = currentTeacherId
+  editState.rubricId = a.rubricId || ''
+  editState.supplementaryLinks = (a.supplementaryLinks || []).map(link => ({
     id: Date.now() + Math.random(),
     value: link
   }))
@@ -250,6 +251,10 @@ function openEditModal() {
     editState.supplementaryLinks.push({ id: Date.now(), value: '' });
   }
   isEditOpen.value = true
+  // Ensure USelect sees the value after modal is open (in case items load after)
+  nextTick(() => {
+    editState.teacherId = currentTeacherId
+  })
 }
 
 function addSupplementaryLink() {
