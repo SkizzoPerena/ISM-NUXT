@@ -129,28 +129,9 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             placeholder="Search assessments..."
             @update:model-value="table?.tableApi?.getColumn('title')?.setFilterValue($event)" />
 
-          <UModal :dismissible="false" title="Add New Assessment">
 
-            <UButton label="Add New Assessment" />
+            <UButton label="Add New Assessment" to="/create-assessment" />
 
-            <template #body>
-              <UForm :validate="validate" :state="state" class="space-y-4" @submit="onSubmit">
-                <UFormField label="Title" name="title" required block>
-                  <UInput v-model="state.title" placeholder="e.g., Quarterly Skills Review" class="w-full" />
-                </UFormField>
-
-                <UFormField label="Instructions" name="instructions" required block>
-                  <UTextarea v-model="state.instructions" placeholder="Provide instructions for this assessment..."
-                    class="w-full" />
-                </UFormField>
-
-                <UButton type="submit" block>
-                  Add Assessment
-                </UButton>
-              </UForm>
-            </template>
-
-          </UModal>
 
         </div>
       </div>

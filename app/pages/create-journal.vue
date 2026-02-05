@@ -167,7 +167,7 @@ function removeOption(question: Question, optionIndex: number) {
                             </div>
                         </UForm>
                     </UPageCard>
-                    <UButton @click="addQuestion" variant="subtle" block>Add new question</UButton>
+                    <UButton @click="addQuestion" variant="subtle" icon="i-lucide-square-plus" block>Add new question</UButton>
                 </div>
 
             </UPageGrid>
