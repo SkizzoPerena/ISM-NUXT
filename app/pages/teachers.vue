@@ -160,7 +160,7 @@ async function onSubmitCreate(event: FormSubmitEvent<CreateSchema>) {
   <UContainer>
     <UPageCard>
 
-      <div class="flex items-center gap-4 mb-4">
+      <div class="flex items-center gap-4">
         <div class="text-lg font-bold">Teachers</div>
         <div style="margin-left: auto">
           <UInput v-model="globalFilter" class="max-w-sm mr-5"
@@ -174,6 +174,8 @@ async function onSubmitCreate(event: FormSubmitEvent<CreateSchema>) {
           />
         </div>
       </div>
+
+                  <USeparator />
 
       <UModal v-model:open="isCreateOpen" :dismissible="!isCreateSubmitting" title="Add New Teacher">
         <template #body>

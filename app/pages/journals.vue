@@ -144,37 +144,19 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   <UContainer>
     <UPageCard>
 
-                  <div class="flex items-center gap-4 mb-4">
+                  <div class="flex items-center gap-4">
         <div class="text-lg font-bold">Journals</div>
         <div style="margin-left: auto">
           <UInput :model-value="table1?.tableApi?.getColumn('title')?.getFilterValue() as string" class="max-w-sm mr-5"
             placeholder="Search journals..."
             @update:model-value="table1?.tableApi?.getColumn('title')?.setFilterValue($event)" />
 
-          <UModal :dismissible="false" title="Add New Journal">
+            <UButton label="Add New Journal" to="/create-journal"/>
 
-            <UButton label="Add New Journal" />
-
-            <template #body>
-              <UForm :validate="validate" :state="state" class="space-y-4" @submit="onSubmit">
-                <UFormField label="Title" name="title" required block>
-                  <UInput v-model="state.title" placeholder="e.g., Weekly Practice Routine" class="w-full" />
-                </UFormField>
-
-                <UFormField label="Description" name="description" required block>
-                  <UTextarea v-model="state.description" placeholder="Describe the journal's purpose..." class="w-full" />
-                </UFormField>
-
-                <UButton type="submit" block>
-                  Add Journal
-                </UButton>
-              </UForm>
-            </template>
-
-          </UModal>
 
         </div>
       </div>
+                  <USeparator />
 
       <UTable ref="table1" v-model:expanded="expanded" :data="data || []" :columns="journalcolumns"
             :ui="{ tr: 'data-[expanded=true]:bg-elevated/50',   }" class="flex-1" :loading="status === 'pending'">

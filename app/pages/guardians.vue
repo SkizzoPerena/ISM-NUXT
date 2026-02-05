@@ -157,7 +157,7 @@ async function onSubmitCreate(event: FormSubmitEvent<CreateSchema>) {
   <UContainer>
     <UPageCard>
 
-      <div class="flex items-center gap-4 mb-4">
+      <div class="flex items-center gap-4">
         <div class="text-lg font-bold">Guardians</div>
         <div style="margin-left: auto">
           <UInput :model-value="table?.tableApi?.getColumn('name')?.getFilterValue() as string" class="max-w-sm mr-5"
@@ -171,6 +171,8 @@ async function onSubmitCreate(event: FormSubmitEvent<CreateSchema>) {
           />
         </div>
       </div>
+
+                  <USeparator />
 
       <UModal v-model:open="isCreateOpen" :dismissible="!isCreateSubmitting" title="Add New Guardian">
         <template #body>

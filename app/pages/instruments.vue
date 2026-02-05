@@ -55,6 +55,7 @@ const columns: TableColumn<Instrument>[] = [
     accessorKey: 'instrumentName',
     header: 'Instrument Name',
     meta: { class: { td: 'w-3/4' } },
+    cell: ({ row }) => h('div', { class: 'font-medium' }, row.getValue('instrumentName')),
     },
   {
     accessorKey: 'createdAt',
@@ -250,7 +251,7 @@ async function confirmDeleteInstrument() {
   <UContainer>
     <UPageCard>
 
-      <div class="flex items-center gap-4 mb-4">
+      <div class="flex items-center gap-4">
         <div class="text-lg font-bold">Instruments</div>
         <div style="margin-left: auto">
           <UInput :model-value="table?.tableApi?.getColumn('instrumentName')?.getFilterValue() as string" class="max-w-sm mr-5"
@@ -264,6 +265,7 @@ async function confirmDeleteInstrument() {
           />
         </div>
       </div>
+            <USeparator />
 
       <UModal v-model:open="isCreateOpen" :dismissible="!isCreateSubmitting" title="Add New Instrument">
         <template #body>

@@ -144,7 +144,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   <UContainer>
     <UPageCard>
 
-                  <div class="flex items-center gap-4 mb-4">
+                  <div class="flex items-center gap-4">
         <div class="text-lg font-bold">Rubrics</div>
         <div style="margin-left: auto">
           <UInput :model-value="table1?.tableApi?.getColumn('title')?.getFilterValue() as string" class="max-w-sm mr-5"
@@ -158,6 +158,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
         </div>
       </div>
+
+      <USeparator />
 
       <UTable ref="table1" v-model:expanded="expanded" :data="data || []" :columns="rubriccolumns"
             :ui="{ tr: 'data-[expanded=true]:bg-elevated/50',   }" class="flex-1" :loading="status === 'pending'">
