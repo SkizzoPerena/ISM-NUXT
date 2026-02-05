@@ -1,15 +1,16 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 definePageMeta({
     layout: 'dashboard',
 })
 
-const questionType = ref(['MULTIPLE CHOICE', 'LIKERT SCALE', 'YES/NO', 'ENUMERATION'])
+const questionType = ref(['MULTIPLE CHOICE', 'YES/NO', 'ESSAY'])
 
-const rubric = ref({
+const journal = ref({
     title: '',
-    description: ''
+    description: '',
+    teacherId: ''
 })
 
 type Question = {
@@ -17,8 +18,46 @@ type Question = {
     type: string;
     text: string;
     options?: { value: string }[];
-    answer?: string; // For enumeration
+    answer?: string; // For essay
 };
+
+type TeacherInfo = {
+  _id: string;
+  firstName: string;
+  lastName:string;
+}
+
+const teachers = ref<{ label: string, value: string }[]>([]);
+const { data: teacherData, pending: teachersPending } = useAsyncData(
+  'teachers',
+  () => $fetch('https://noteworthy-z9k0.onrender.com/api/admin/teacher', {
+    headers: {
+      Authorization: `${useAuthToken().value}`
+    }
+  }),
+  {
+    transform: (response: any): TeacherInfo[] => {
+      const teacherList = response?.data || response?.teachers || response;
+      if (!Array.isArray(teacherList)) {
+        return [];
+      }
+      return teacherList.map((teacher: any) => ({
+        _id: teacher._id,
+        firstName: teacher.firstName,
+        lastName: teacher.lastName,
+      }));
+    }
+  }
+);
+
+watch(teacherData, (newTeacherData) => {
+  if (newTeacherData) {
+    teachers.value = newTeacherData.map(t => ({
+      label: `${t.firstName} ${t.lastName}`,
+      value: t._id
+    }));
+  }
+}, { immediate: true });
 
 const questions = ref<Question[]>([
     { id: Date.now(), type: '', text: '', options: [{ value: '' }] }
@@ -53,7 +92,7 @@ function removeOption(question: Question, optionIndex: number) {
 
     <UContainer>
         <UPageCard>
-            <div class="text-lg font-bold">Create Rubrics</div>
+            <div class="text-lg font-bold">Create Journal</div>
             <USeparator />
             <UPageGrid>
                 <UForm>
@@ -61,18 +100,29 @@ function removeOption(question: Question, optionIndex: number) {
 
                         <UFormField label="Title" name="title" required block class="w-full">
 
-                            <UInput label="Title" name="title" v-model="rubric.title" placeholder="Enter rubric title"
+                            <UInput label="Title" name="title" v-model="journal.title" placeholder="Enter journal title"
                                 class="w-full" />
                         </UFormField>
 
+                        <UFormField label="Assigned Teacher" name="teacher" required class="mt-4">
+                            <USelect v-model="journal.teacherId"
+                                placeholder="Select a teacher"
+                                :items="teachers"
+                                option-attribute="label"
+                                value-attribute="value"
+                                :loading="teachersPending"
+                                class="w-full"
+                                />
+                        </UFormField>
+
                         <UFormField label="Description" name="description" required class="mt-4">
-                            <UTextarea v-model="rubric.description" placeholder="Enter rubric description"
+                            <UTextarea v-model="journal.description" placeholder="Enter journal description"
                                 class="w-full" />
                         </UFormField>
                     </UFormGroup>
                 </UForm>
                 <div class="lg:col-span-2">
-                    <div class="font-semibold">Rubric Questions</div>
+                    <div class="font-semibold">Journal Questions</div>
                     <!-- make a new card for every question -->
                     <UPageCard v-for="(question, index) in questions" :key="question.id" class="my-4">
                         <div class="flex justify-between items-center">
@@ -106,29 +156,25 @@ function removeOption(question: Question, optionIndex: number) {
                                     </UButton>
                                 </UForm>
                             </div>
-                            <div v-else-if="question.type === 'LIKERT SCALE'">
-                                <p class="text-sm text-gray-500 dark:text-gray-400">A 1-5 rating scale will be shown.
-                                </p>
-                            </div>
                             <div v-else-if="question.type === 'YES/NO'">
                                 <p class="text-sm text-gray-500 dark:text-gray-400">"Yes" and "No" options will be
                                     provided.</p>
                             </div>
-                            <div v-else-if="question.type === 'ENUMERATION'">
-                                <UFormField label="Keywords / Sample Answer" name="enumerationAnswer" class="mt-4">
+                            <div v-else-if="question.type === 'ESSAY'">
+                                <UFormField label="Keywords / Sample Answer" name="essayAnswer" class="mt-4">
                                     <UTextarea v-model="question.answer"  class="mt-2 w-full" placeholder="Enter keywords or a sample answer for grading reference" />
                                 </UFormField>
                             </div>
                         </UForm>
                     </UPageCard>
-                    <UButton @click="addQuestion" block variant="subtle" icon="i-lucide-square-plus">Add new question</UButton>
+                    <UButton @click="addQuestion" variant="subtle" block>Add new question</UButton>
                 </div>
 
             </UPageGrid>
         </UPageCard>
 
-                <UPageCard class="mt-4">
-            <UButton size="lg" icon="i-lucide-circle-check" block>Finish Creating Rubric</UButton>
+        <UPageCard class="mt-4">
+            <UButton size="lg" icon="i-lucide-circle-check" block>Finish Creating Journal</UButton>
         </UPageCard>
 
 

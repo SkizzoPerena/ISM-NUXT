@@ -269,7 +269,7 @@ const SAAB = ref(['Male', 'Female'])
   <UContainer>
     <UPageCard>
 
-      <div class="flex items-center gap-4 mb-4">
+      <div class="flex items-center gap-4">
         <div class="text-lg font-bold">Students</div>
         <div style="margin-left: auto">
           <UInput
@@ -317,7 +317,7 @@ const SAAB = ref(['Male', 'Female'])
           </UModal>
 
         </div>
-      </div>
+      </div><USeparator />
 
 
       <UTable ref="table" v-model:column-filters="columnFilters" sticky :data="data || []" :columns="columns" :loading="status === 'pending'" class="flex-1 max-h-[70vh]" />

@@ -55,7 +55,7 @@ const columns: TableColumn<Section>[] = [
   {
     accessorKey: 'name',
     header: 'Section Name',  
-    cell: ({ row }) => h(NuxtLink, { to: `/profile-section?id=${row.original._id}` }, { default: () => row.getValue('name') })
+    cell: ({ row }) => h(NuxtLink, { to: `/profile-section?id=${row.original._id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('name') })
   },
   {
     accessorKey: '_id',
@@ -135,8 +135,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   <UContainer>
     <UPageCard>
 
-      <div class="flex items-center gap-4 mb-4">
-        <div class="text-lg font-bold">sections</div>
+      <div class="flex items-center gap-4">
+        <div class="text-lg font-bold">Sections</div>
         <div style="margin-left: auto">
           <UInput  v-model="globalFilter" class="max-w-sm mr-5"
             placeholder="Search sections..."
@@ -172,6 +172,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
         </div>
       </div>
+      <USeparator />
 
 
       <UTable ref="table" v-model:global-filter="globalFilter" sticky :data="data || []" :columns="columns" :loading="status === 'pending'" class="flex-1 max-h-[70vh]" />

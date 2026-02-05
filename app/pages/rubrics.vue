@@ -151,27 +151,10 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             placeholder="Search rubrics..."
             @update:model-value="table1?.tableApi?.getColumn('title')?.setFilterValue($event)" />
 
-          <UModal :dismissible="false" title="Add New Rubric">
+          
 
-            <UButton label="Add New Rubric" />
+            <UButton label="Add New Rubric" to="/create-rubrics"/>
 
-            <template #body>
-              <UForm :validate="validate" :state="state" class="space-y-4" @submit="onSubmit">
-                <UFormField label="Title" name="title" required block>
-                  <UInput v-model="state.title" placeholder="e.g., Performance Rubric" class="w-full" />
-                </UFormField>
-
-                <UFormField label="Description" name="description" required block>
-                  <UTextarea v-model="state.description" placeholder="Describe the rubric's criteria..." class="w-full" />
-                </UFormField>
-
-                <UButton type="submit" block>
-                  Add Rubric
-                </UButton>
-              </UForm>
-            </template>
-
-          </UModal>
 
         </div>
       </div>
