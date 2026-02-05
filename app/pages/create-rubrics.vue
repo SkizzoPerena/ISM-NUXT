@@ -2,50 +2,110 @@
 import { ref } from 'vue'
 
 definePageMeta({
-    layout: 'dashboard',
+  layout: 'dashboard',
 })
+
+const API_BASE = 'https://noteworthy-z9k0.onrender.com'
+const toast = useToast()
 
 const questionType = ref(['MULTIPLE CHOICE', 'LIKERT SCALE', 'YES/NO', 'ENUMERATION'])
 
 const rubric = ref({
-    title: '',
-    description: ''
+  title: '',
+  description: '',
 })
 
 type Question = {
-    id: number;
-    type: string;
-    text: string;
-    options?: { value: string }[];
-    answer?: string; // For enumeration
-};
+  id: number
+  type: string
+  text: string
+  options?: { value: string }[]
+  answer?: string
+}
 
 const questions = ref<Question[]>([
-    { id: Date.now(), type: '', text: '', options: [{ value: '' }] }
-]);
+  { id: Date.now(), type: '', text: '', options: [{ value: '' }] },
+])
+
+const isSubmitting = ref(false)
 
 function addQuestion() {
-    questions.value.push({ id: Date.now(), type: '', text: '', options: [{ value: '' }] });
+  questions.value.push({ id: Date.now(), type: '', text: '', options: [{ value: '' }] })
 }
 
 function removeQuestion(id: number) {
-    // Keep at least one question
-    if (questions.value.length > 1) {
-        questions.value = questions.value.filter(q => q.id !== id);
-    }
+  if (questions.value.length > 1) {
+    questions.value = questions.value.filter((q) => q.id !== id)
+  }
 }
 
 function addOption(question: Question) {
-    if (!question.options) {
-        question.options = [];
-    }
-    question.options.push({ value: '' });
+  if (!question.options) question.options = [{ value: '' }]
+  else question.options.push({ value: '' })
 }
 
 function removeOption(question: Question, optionIndex: number) {
-    if (question.options && question.options.length > 1) {
-        question.options.splice(optionIndex, 1);
+  if (question.options && question.options.length > 1) {
+    question.options.splice(optionIndex, 1)
+  }
+}
+
+function validate(): string | null {
+  if (!rubric.value.title?.trim()) return 'Title is required.'
+  if (!rubric.value.description?.trim()) return 'Description is required.'
+  for (const [i, q] of questions.value.entries()) {
+    if (!q.text?.trim()) return `Question ${i + 1}: question text is required.`
+    if (!q.type?.trim()) return `Question ${i + 1}: question type is required.`
+    if (q.type === 'MULTIPLE CHOICE' && q.options?.length) {
+      const filled = q.options.map((o) => o.value?.trim()).filter(Boolean)
+      if (filled.length < 2) return `Question ${i + 1}: Multiple Choice requires at least two choices.`
     }
+  }
+  return null
+}
+
+function buildPayload() {
+  return {
+    title: rubric.value.title.trim(),
+    description: rubric.value.description.trim(),
+    questions: questions.value.map((q) => {
+      const choices =
+        q.type === 'MULTIPLE CHOICE' && q.options?.length
+          ? q.options.map((o) => o.value?.trim()).filter((v): v is string => !!v)
+          : undefined
+      return {
+        questionText: q.text.trim(),
+        questionType: q.type.trim(),
+        ...(choices && choices.length > 0 ? { choices } : {}),
+      }
+    }),
+  }
+}
+
+async function createRubric() {
+  const err = validate()
+  if (err) {
+    toast.add({ title: 'Validation failed', description: err, color: 'error' })
+    return
+  }
+  if (isSubmitting.value) return
+  isSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/rubrics`, {
+      method: 'POST',
+      headers: { Authorization: `${useAuthToken().value}` },
+      body: buildPayload(),
+    })
+    toast.add({ title: 'Success', description: 'Rubric created.', color: 'success' })
+    rubric.value = { title: '', description: '' }
+    questions.value = [{ id: Date.now(), type: '', text: '', options: [{ value: '' }] }]
+    await navigateTo('/rubrics')
+  } catch (error) {
+    console.error('Error creating rubric:', error)
+    toast.add({ title: 'Error', description: 'Failed to create rubric.', color: 'error' })
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -128,7 +188,16 @@ function removeOption(question: Question, optionIndex: number) {
         </UPageCard>
 
                 <UPageCard class="mt-4">
-            <UButton size="lg" icon="i-lucide-circle-check" block>Finish Creating Rubric</UButton>
+            <UButton
+              size="lg"
+              icon="i-lucide-circle-check"
+              block
+              :loading="isSubmitting"
+              :disabled="isSubmitting"
+              @click="createRubric"
+            >
+              Create Rubric
+            </UButton>
         </UPageCard>
 
 
