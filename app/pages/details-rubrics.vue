@@ -27,7 +27,7 @@ const items = [
 const route = useRoute()
 const rubricId = computed(() => route.query.id as string)
 
-type RubricQuestionType = "YES/NO" | "MULTIPLE CHOICE" | "ESSAY" | "LIKERT SCALE"
+type RubricQuestionType = "YES/NO" | "MULTIPLE CHOICE" | "ENUMERATION" | "LIKERT SCALE"
 
 type RubricQuestion = {
   questionText: string
@@ -322,24 +322,24 @@ async function onDeleteRubric() {
                   <UButton @click="removeQuestion(question.id)" icon="i-lucide-x" variant="ghost" color="error"
                     :disabled="editState.questions.length <= 1" />
                 </div>
-                <div class="mt-4 space-y-4">
+                <div class="mt-4 ">
                   <UFormField label="Question" :name="`question_${index}_text`">
                     <UInput v-model="question.text" placeholder="Enter question text" class="w-full" />
                   </UFormField>
-                  <UFormField label="Question Type" :name="`question_${index}_type`">
+                  <UFormField label="Question Type" :name="`question_${index}_type`" class=" mt-2">
                     <USelect v-model="question.type" placeholder="Select question type" :items="questionType" class="w-full" />
                   </UFormField>
 
                   <!-- Conditional fields based on question type -->
                   <div v-if="question.type === 'MULTIPLE CHOICE'">
-                    <UFormField label="Options" :name="`question_${index}_options`">
+                    <UFormField label="Options" :name="`question_${index}_options`" class=" mt-2">
                       <div v-for="(option, optionIndex) in question.options" :key="optionIndex"
                         class="flex items-center gap-2 mb-2">
                         <UInput v-model="option.value" placeholder="Option text" class="flex-1" />
                         <UButton @click="removeOption(question, optionIndex)" icon="i-lucide-trash-2" color="error"
                           variant="ghost" :disabled="question.options && question.options.length <= 1" />
                       </div>
-                      <UButton @click="addOption(question)" size="sm" variant="outline">Add Option</UButton>
+                      <UButton @click="addOption(question)" size="sm" block variant="outline">Add Option</UButton>
                     </UFormField>
                   </div>
                   <div v-else-if="question.type === 'LIKERT SCALE'">
@@ -348,12 +348,9 @@ async function onDeleteRubric() {
                   <div v-else-if="question.type === 'YES/NO'">
                     <p class="text-sm text-gray-500 dark:text-gray-400">"Yes" and "No" options will be provided.</p>
                   </div>
-                  <div v-else-if="question.type === 'ENUMERATION'">
-                    <UFormField label="Keywords / Sample Answer" :name="`question_${index}_answer`">
-                      <UTextarea v-model="question.answer"
-                        placeholder="Enter keywords or a sample answer for grading reference" />
-                    </UFormField>
-                  </div>
+                <div v-else-if="question.type === 'ENUMERATION'">
+                  <p class="text-sm text-gray-500 dark:text-gray-400">Free-form essay response.</p>
+                </div>
                 </div>
               </UPageCard>
               <UButton @click="addQuestion" variant="subtle" icon="i-lucide-square-plus" block>Add new question

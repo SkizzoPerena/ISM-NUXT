@@ -376,85 +376,83 @@ async function onDeleteJournal() {
     <!-- Edit Journal Modal -->
     <UModal v-model:open="isEditOpen" :dismissible="false" fullscreen>
 
-          <template #header>
-            <div class="flex items-center justify-between w-full">
-              <h3 class="text-lg font-semibold">Edit Journal</h3>
-              <UButton icon="i-lucide-x" variant="ghost" color="error" :disabled="isEditSubmitting"
-                @click="isEditOpen = false" />
-            </div>
-          </template>
-          <template #body>
+      <template #header>
+        <div class="flex items-center justify-between w-full">
+          <h3 class="text-lg font-semibold">Edit Journal</h3>
+          <UButton icon="i-lucide-x" variant="ghost" color="error" :disabled="isEditSubmitting"
+            @click="isEditOpen = false" />
+        </div>
+      </template>
+      <template #body>
 
-            <UPageGrid>
-              <div class="space-y-4">
-                <UFormField label="Title" name="title" required>
-                  <UInput v-model="editState.title" class="w-full"/>
-                </UFormField>
+        <UPageGrid>
+          <div class="space-y-4">
+            <UFormField label="Title" name="title" required>
+              <UInput v-model="editState.title" class="w-full" />
+            </UFormField>
 
-                <UFormField label="Assigned Teacher" name="teacherId" required>
-                  <USelect v-model="editState.teacherId" placeholder="Select a teacher" :items="teachers"
-                    option-attribute="label" value-attribute="value" :loading="teachersPending" class="w-full"/>
-                </UFormField>
+            <UFormField label="Assigned Teacher" name="teacherId" required>
+              <USelect v-model="editState.teacherId" placeholder="Select a teacher" :items="teachers"
+                option-attribute="label" value-attribute="value" :loading="teachersPending" class="w-full" />
+            </UFormField>
 
-                <UFormField label="Description" name="description" required>
-                  <UTextarea v-model="editState.description" class="w-full"/>
-                </UFormField>
+            <UFormField label="Description" name="description" required>
+              <UTextarea v-model="editState.description" class="w-full" />
+            </UFormField>
+          </div>
+
+          <div class="lg:col-span-2">
+            <div class="font-semibold">Journal Questions</div>
+            <UPageCard v-for="(question, index) in editState.questions" :key="question.id" class="my-4">
+              <div class="flex justify-between items-center">
+                <div class="font-semibold">Question {{ index + 1 }}</div>
+                <UButton @click="removeQuestion(question.id)" icon="i-lucide-x" variant="ghost" color="error"
+                  :disabled="editState.questions.length <= 1" />
               </div>
+              <div>
+                <UFormField label="Question" :name="`question_${index}_text`">
+                  <UInput v-model="question.text" class="w-full mb-4" placeholder="Enter question text"  />
+                </UFormField>
+                <UFormField label="Question Type" :name="`question_${index}_type`">
+                  <USelect v-model="question.type" class="w-full" placeholder="Select question type"
+                    :items="questionType" />
+                </UFormField>
 
-              <div class="lg:col-span-2">
-                <div class="font-semibold">Journal Questions</div>
-                <UPageCard v-for="(question, index) in editState.questions" :key="question.id" class="my-4">
-                  <div class="flex justify-between items-center">
-                    <div class="font-semibold">Question {{ index + 1 }}</div>
-                    <UButton @click="removeQuestion(question.id)" icon="i-lucide-x" variant="ghost" color="error"
-                      :disabled="editState.questions.length <= 1" />
-                  </div>
-                  <div class=" space-y-4">
-                    <UFormField label="Question" :name="`question_${index}_text`">
-                      <UInput v-model="question.text" class="w-full" placeholder="Enter question text" />
-                    </UFormField>
-                    <UFormField label="Question Type" :name="`question_${index}_type`">
-                      <USelect v-model="question.type" class="w-full" placeholder="Select question type" :items="questionType" />
-                    </UFormField>
-
-                    <!-- Conditional fields based on question type -->
-                    <div v-if="question.type === 'MULTIPLE CHOICE'">
-                      <UFormField label="Options" :name="`question_${index}_options`">
-                        <div v-for="(option, optionIndex) in question.options" :key="optionIndex"
-                          class="flex items-center gap-2 mb-2">
-                          <UInput v-model="option.value" placeholder="Option text" class="flex-1" />
-                          <UButton @click="removeOption(question, optionIndex)" icon="i-lucide-trash-2" color="error"
-                            variant="ghost" :disabled="question.options && question.options.length <= 1" />
-                        </div>
-                        <UButton @click="addOption(question)" size="sm" variant="outline">Add Option</UButton>
-                      </UFormField>
+                <!-- Conditional fields based on question type -->
+                <div v-if="question.type === 'MULTIPLE CHOICE'">
+                  <UFormField label="Options" :name="`question_${index}_options`" class="mt-2">
+                    <div v-for="(option, optionIndex) in question.options" :key="optionIndex"
+                      class="flex items-center gap-2 mb-2">
+                      <UInput v-model="option.value" placeholder="Option text" class="flex-1" />
+                      <UButton @click="removeOption(question, optionIndex)" icon="i-lucide-trash-2" color="error"
+                        variant="ghost" :disabled="question.options && question.options.length <= 1" />
                     </div>
-                    <div v-else-if="question.type === 'YES/NO'">
-                      <p class="text-sm text-gray-500 dark:text-gray-400">"Yes" and "No" options will be provided.</p>
-                    </div>
-                    <div v-else-if="question.type === 'ESSAY'">
-                      <UFormField label="Keywords / Sample Answer" name="essayAnswer">
-                        <UTextarea v-model="question.answer"
-                          placeholder="Enter keywords or a sample answer for grading reference" class="w-full"/>
-                      </UFormField>
-                    </div>
-                  </div>
-                </UPageCard>
-                <UButton @click="addQuestion" variant="subtle" icon="i-lucide-square-plus" block>Add new question
-                </UButton>
+                    <UButton @click="addOption(question)" size="sm" variant="outline" block>Add Option</UButton>
+                  </UFormField>
+                </div>
+                <div v-else-if="question.type === 'YES/NO'">
+                  <p class="text-sm text-gray-500 dark:text-gray-400">"Yes" and "No" options will be provided.</p>
+                </div>
+                <div v-else-if="question.type === 'ESSAY'">
+                  <p class="text-sm text-gray-500 dark:text-gray-400">Free-form essay response.</p>
+                </div>
               </div>
-            </UPageGrid>
-          </template>
-          <template #footer class="flex justify-between gap-2">
+            </UPageCard>
+            <UButton @click="addQuestion" variant="subtle" icon="i-lucide-square-plus" block>Add new question
+            </UButton>
+          </div>
+        </UPageGrid>
+      </template>
+      <template #footer class="flex justify-between gap-2">
 
-              <UButton type="button" block variant="outline" :disabled="isEditSubmitting" @click="isEditOpen = false">
-                Cancel
-              </UButton>
-              <UButton type="submit" block :loading="isEditSubmitting" :disabled="isEditSubmitting">
-                Update Journal
-              </UButton>
+        <UButton type="button" block variant="outline" :disabled="isEditSubmitting" @click="isEditOpen = false">
+          Cancel
+        </UButton>
+        <UButton type="submit" block :loading="isEditSubmitting" :disabled="isEditSubmitting">
+          Update Journal
+        </UButton>
 
-          </template>
+      </template>
 
     </UModal>
 
