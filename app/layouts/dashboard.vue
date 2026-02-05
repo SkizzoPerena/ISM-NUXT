@@ -183,14 +183,6 @@ defineShortcuts({
           <UInput class="mr-2" placeholder="Search..." />
 
           <UButton to="/" icon="i-lucide-house" color="neutral" variant="ghost" />
-
-
-<UPopover arrow>
-    <UChip inset color="error">
-            <UButton icon="i-lucide-bell" color="neutral" variant="ghost" />
-          </UChip>
-
-  </UPopover>
           
 
           <!-- Avatar -->
