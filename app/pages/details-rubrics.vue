@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ref, reactive, watch, computed, resolveComponent } from 'vue'
-import type { TabsItem, FormError, FormSubmitEvent } from '@nuxt/ui'
+import type { TabsItem, FormError } from '@nuxt/ui'
 
 definePageMeta({
   layout: 'dashboard',
@@ -93,7 +93,6 @@ type EditableQuestion = {
   type: string;
   text: string;
   options?: { value: string }[];
-  answer?: string; // For enumeration
 };
 
 const isEditOpen = ref(false)
@@ -119,9 +118,6 @@ function validateEdit(state: Partial<EditSchema>): FormError[] {
     if (q.type === 'MULTIPLE CHOICE' && (!q.options || q.options.filter(o => o.value).length < 2)) {
       errors.push({ name: `question_${i}_options`, message: `Q${i + 1}: At least 2 options required` })
     }
-    if (q.type === 'ENUMERATION' && !q.answer) {
-      errors.push({ name: `question_${i}_answer`, message: `Q${i + 1}: Answer is required` })
-    }
   })
   return errors
 }
@@ -135,9 +131,6 @@ function openEditModal() {
     text: q.questionText,
     type: q.questionType,
     options: q.questionType === 'MULTIPLE CHOICE' ? (q.choices || []).map(c => ({ value: c })) : [{ value: '' }],
-    // The API for a single rubric doesn't seem to return the 'answer' for enumeration.
-    // We'll assume it's empty on edit unless the API changes.
-    answer: '',
   }))
   if (editState.questions.length === 0) {
     editState.questions.push({ id: Date.now(), type: '', text: '', options: [{ value: '' }] })
@@ -169,22 +162,26 @@ function removeOption(question: EditableQuestion, optionIndex: number) {
   }
 }
 
-async function onSubmitEdit(event: FormSubmitEvent<EditSchema>) {
+async function onSubmitEdit() {
   if (!rubricId.value || isEditSubmitting.value) return
+  const errors = validateEdit(editState)
+  if (errors.length > 0) {
+    toast.add({ title: 'Validation failed', description: errors[0]?.message ?? 'Please fix the form errors.', color: 'error' })
+    return
+  }
   isEditSubmitting.value = true
   try {
     const payload = {
-      title: editState.title,
-      description: editState.description,
+      title: editState.title.trim(),
+      description: editState.description.trim(),
       questions: editState.questions.map(q => {
-        const choices = q.type === 'MULTIPLE CHOICE' ? q.options?.map(o => o.value).filter(Boolean) : undefined
+        const choices = q.type === 'MULTIPLE CHOICE' ? q.options?.map(o => o.value?.trim()).filter(Boolean) : undefined
         return {
-          questionText: q.text,
-          questionType: q.type,
+          questionText: q.text.trim(),
+          questionType: q.type.trim(),
           ...(choices && choices.length > 0 ? { choices } : {}),
-          ...(q.type === 'ENUMERATION' && q.answer ? { answer: q.answer } : {}),
         }
-      })
+      }),
     }
 
     await $fetch(`${API_BASE}/api/admin/rubrics/${rubricId.value}`, {
@@ -210,7 +207,7 @@ async function onDeleteRubric() {
   if (!rubricId.value || isDeleteSubmitting.value) return
   isDeleteSubmitting.value = true
   try {
-    await $fetch(`${API_BASE}/api/admin/rubrics/${rubricId.value}`, {
+    await $fetch(`${API_BASE}/api/admin/rubrics/${rubricId.value}/`, {
       method: 'DELETE',
       headers: { Authorization: `${useAuthToken().value}` },
     })
@@ -364,8 +361,8 @@ async function onDeleteRubric() {
               <UButton type="button" block variant="outline" :disabled="isEditSubmitting" @click="isEditOpen = false">
                 Cancel
               </UButton>
-              <UButton type="submit" block :loading="isEditSubmitting" :disabled="isEditSubmitting">
-                Update Rubrics  
+              <UButton type="button" block :loading="isEditSubmitting" :disabled="isEditSubmitting" @click="onSubmitEdit">
+                Update Rubrics
               </UButton>
 
           </template>
