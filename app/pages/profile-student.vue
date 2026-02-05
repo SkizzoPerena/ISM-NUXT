@@ -732,7 +732,12 @@ const journalEntryColumns: TableColumn<JournalEntry>[] = [
   {
     accessorKey: 'journalSection',
     header: 'Journal Title',
-    cell: ({ row }) => row.original.journalSection?.journalId?.title ?? '—'
+    cell: ({ row }) => {
+      const title = row.original.journalSection?.journalId?.title ?? '—'
+      const entryId = row.original._id
+      if (!entryId) return title
+      return h(NuxtLink, { to: `/journal-entry?id=${entryId}`, class: 'text-primary font-medium hover:underline' }, { default: () => title })
+    }
   },
   {
     accessorKey: 'updatedAt',
