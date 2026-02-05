@@ -75,16 +75,27 @@ const columns: TableColumn<Instrument>[] = [
     }
   },
   {
-    id: 'unassign',
+    id: 'actions',
     header: '',
     cell: ({ row }) =>
-      h(UButton, {
-        icon: 'i-lucide-trash-2',
-        color: 'error',
-        variant: 'ghost',
-        square: true,
-        'aria-label': 'Delete instrument',
-      })
+      h('div', { class: 'flex items-center gap-1' }, [
+        h(UButton, {
+          icon: 'i-lucide-pencil',
+          color: 'success',
+          variant: 'ghost',
+          square: true,
+          'aria-label': 'Edit instrument',
+          onClick: () => openEditModal(row.original),
+        }),
+        h(UButton, {
+          icon: 'i-lucide-trash-2',
+          color: 'error',
+          variant: 'ghost',
+          square: true,
+          'aria-label': 'Delete instrument',
+          onClick: () => openDeleteConfirm(row.original),
+        }),
+      ])
   },
 ]
 
@@ -121,8 +132,7 @@ type CreateSchema = typeof createState
 
 function validateCreate(state: Partial<CreateSchema>): FormError[] {
   const errors: FormError[] = []
-  if (!state.instrumentName) errors.push({ name: 'instrumentName', message: 'Required' })
-  if (!state.description) errors.push({ name: 'description', message: 'Required' })
+  if (!state.instrumentName?.trim()) errors.push({ name: 'instrumentName', message: 'Required' })
   return errors
 }
 
@@ -135,7 +145,6 @@ async function onSubmitCreate(event: FormSubmitEvent<CreateSchema>) {
       headers: { Authorization: `${useAuthToken().value}` },
       body: {
         instrumentName: createState.instrumentName,
-        description: createState.description,
       },
     })
 
@@ -149,6 +158,88 @@ async function onSubmitCreate(event: FormSubmitEvent<CreateSchema>) {
     toast.add({ title: 'Error', description: 'Failed to create Instrument.', color: 'error' })
   } finally {
     isCreateSubmitting.value = false
+  }
+}
+
+// EDIT instrument
+const instrumentToEdit = ref<Instrument | null>(null)
+const isEditModalOpen = ref(false)
+const isEditSubmitting = ref(false)
+const editInstrumentName = ref('')
+
+function openEditModal(instrument: Instrument) {
+  instrumentToEdit.value = instrument
+  editInstrumentName.value = instrument.instrumentName
+  isEditModalOpen.value = true
+}
+
+function closeEditModal() {
+  if (!isEditSubmitting.value) {
+    isEditModalOpen.value = false
+    instrumentToEdit.value = null
+    editInstrumentName.value = ''
+  }
+}
+
+async function confirmUpdateInstrument() {
+  const id = instrumentToEdit.value?._id
+  const name = editInstrumentName.value?.trim()
+  if (!id || !name || isEditSubmitting.value) return
+  isEditSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/instruments/${id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `${useAuthToken().value}` },
+      body: { instrumentName: name },
+    })
+    toast.add({ title: 'Success', description: 'Instrument updated.', color: 'success' })
+    isEditModalOpen.value = false
+    instrumentToEdit.value = null
+    editInstrumentName.value = ''
+    await refresh()
+  } catch (error) {
+    console.error('Error updating instrument:', error)
+    toast.add({ title: 'Error', description: 'Failed to update instrument.', color: 'error' })
+  } finally {
+    isEditSubmitting.value = false
+  }
+}
+
+// DELETE (archive) instrument
+const instrumentToDelete = ref<Instrument | null>(null)
+const isDeleteModalOpen = ref(false)
+const isDeleteSubmitting = ref(false)
+
+function openDeleteConfirm(instrument: Instrument) {
+  instrumentToDelete.value = instrument
+  isDeleteModalOpen.value = true
+}
+
+function closeDeleteConfirm() {
+  if (!isDeleteSubmitting.value) {
+    isDeleteModalOpen.value = false
+    instrumentToDelete.value = null
+  }
+}
+
+async function confirmDeleteInstrument() {
+  const id = instrumentToDelete.value?._id
+  if (!id || isDeleteSubmitting.value) return
+  isDeleteSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/instruments/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `${useAuthToken().value}` },
+    })
+    toast.add({ title: 'Success', description: 'Instrument archived.', color: 'success' })
+    isDeleteModalOpen.value = false
+    instrumentToDelete.value = null
+    await refresh()
+  } catch (error) {
+    console.error('Error archiving instrument:', error)
+    toast.add({ title: 'Error', description: 'Failed to archive instrument.', color: 'error' })
+  } finally {
+    isDeleteSubmitting.value = false
   }
 }
 
@@ -189,6 +280,79 @@ async function onSubmitCreate(event: FormSubmitEvent<CreateSchema>) {
         </template>
       </UModal>
 
+      <!-- Edit instrument -->
+      <UModal v-model:open="isEditModalOpen" :dismissible="!isEditSubmitting">
+        <template #header>
+          <div class="flex items-center justify-between w-full">
+            <h3 class="text-lg font-semibold">Update instrument</h3>
+            <UButton
+              icon="i-lucide-x"
+              variant="ghost"
+              :disabled="isEditSubmitting"
+              @click="closeEditModal"
+            />
+          </div>
+        </template>
+        <template #body>
+          <div class="space-y-4">
+            <UFormField label="Instrument name" name="instrumentName" required block>
+              <UInput
+                v-model="editInstrumentName"
+                placeholder="e.g., Guitar"
+                class="w-full"
+                :disabled="isEditSubmitting"
+              />
+            </UFormField>
+            <div class="flex justify-end gap-2">
+              <UButton
+                type="button"
+                variant="outline"
+                :disabled="isEditSubmitting"
+                @click="closeEditModal"
+              >
+                Cancel
+              </UButton>
+              <UButton
+                :loading="isEditSubmitting"
+                :disabled="!editInstrumentName?.trim() || isEditSubmitting"
+                @click="confirmUpdateInstrument"
+              >
+                Update
+              </UButton>
+            </div>
+          </div>
+        </template>
+      </UModal>
+
+      <!-- Delete instrument confirmation -->
+      <UModal v-model:open="isDeleteModalOpen" :dismissible="!isDeleteSubmitting">
+        <template #header>
+          <h3 class="text-lg font-semibold">Archive instrument</h3>
+        </template>
+        <template #body>
+          <p v-if="instrumentToDelete">
+            Are you sure you want to archive {{ instrumentToDelete.instrumentName }}?
+          </p>
+          <div class="flex justify-end gap-2 mt-6">
+            <UButton
+              type="button"
+              variant="outline"
+              :disabled="isDeleteSubmitting"
+              @click="closeDeleteConfirm"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="error"
+              :loading="isDeleteSubmitting"
+              :disabled="isDeleteSubmitting"
+              @click="confirmDeleteInstrument"
+            >
+              Archive
+            </UButton>
+          </div>
+        </template>
+      </UModal>
 
       <!--
         The UTable with `sticky` and viewport-dependent height (`max-h-[70vh]`) can cause a hydration mismatch.
