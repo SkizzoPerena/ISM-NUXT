@@ -71,8 +71,8 @@ type IndividualSubmission = {
   _id?: string
   submissionURL?: string
   submissionType?: string
-  assessmentSection?: { assessmentId?: { _id?: string, title?: string }; studentId?: { firstName?: string, lastName?: string } }
-  studentId?: { firstName?: string, lastName?: string }
+  assessmentSection?: { assessmentId?: { _id?: string, title?: string } }
+  student?: { firstName?: string, lastName?: string }
   [key: string]: unknown
 }
 
@@ -166,7 +166,7 @@ const assessmentTitle = computed(() =>
   assessment.value?.title ?? submission.value?.assessmentSection?.assessmentId?.title ?? '—'
 );
 const studentName = computed(() => {
-  const s = submission.value?.studentId ?? submission.value?.assessmentSection?.studentId
+  const s = submission.value?.student
   if (!s) return ''
   return [s.firstName, s.lastName].filter(Boolean).join(' ') || '—'
 });
