@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import type { TabsItem } from '@nuxt/ui'
 
 definePageMeta({
@@ -9,15 +9,38 @@ definePageMeta({
 const API_BASE = 'https://noteworthy-z9k0.onrender.com'
 
 
-const fileInput = ref<HTMLInputElement | null>(null);
+const fileInput = ref<HTMLInputElement | null>(null)
+const uploadedVideoUrl = ref<string | null>(null)
 
 function triggerFileInput() {
-  fileInput.value?.click();
+  fileInput.value?.click()
 }
+
+function onFileSelected(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file || !file.type.startsWith('video/')) return
+  if (uploadedVideoUrl.value) {
+    URL.revokeObjectURL(uploadedVideoUrl.value)
+  }
+  uploadedVideoUrl.value = URL.createObjectURL(file)
+  target.value = ''
+  // Remove attached link when user uploads a file
+  attachedLinkUrl.value = null
+  videoLink.value = ''
+  previewUrl.value = ''
+}
+
+onUnmounted(() => {
+  if (uploadedVideoUrl.value) {
+    URL.revokeObjectURL(uploadedVideoUrl.value)
+  }
+})
 
 const isAttachLinkModalOpen = ref(false)
 const videoLink = ref('')
 const previewUrl = ref('')
+const attachedLinkUrl = ref<string | null>(null)
 
 const items = [
   {
@@ -31,8 +54,7 @@ const items = [
 ] satisfies TabsItem[]
 
 const route = useRoute()
-const assessmentId = computed(() => route.query.id as string)
-const sectionId = computed(() => route.query.sectionId as string)
+const groupSubmissionId = computed(() => route.query.id as string)
 
 type AssessmentDetail = {
   _id: string
@@ -74,16 +96,37 @@ type GroupSubmission = {
   _id?: string
   submissionURL?: string
   submissionType?: string
-  assessmentSection?: { assessmentId?: { _id?: string, title?: string } }
+  assessmentSection?: { 
+    assessmentId?: { _id?: string, title?: string } 
+    sectionId?: { _id?: string, name?: string }
+  }
   [key: string]: unknown
 }
 
-// Fetch assessment and its associated teacher details in a single, combined async call
+// Fetch submission by id, then assessment and teacher in a single async call
 const { data, status } = await useAsyncData<AssessmentPageData | null>(
-  `assessment-page-${assessmentId.value}`,
+  `assessment-page-${groupSubmissionId.value}`,
   async () => {
-    // 1. Fetch the primary assessment details
-    const assessmentResponse: any = await $fetch(`${API_BASE}/api/admin/assessments/${assessmentId.value}`, {
+    if (!groupSubmissionId.value) return null
+    // 1. Fetch the group submission by id
+    let assessmentId: string | undefined
+    try {
+      const submissionResponse: any = await $fetch(`${API_BASE}/api/admin/group-submission/${groupSubmissionId.value}`, {
+        headers: { Authorization: `${useAuthToken().value}` },
+      })
+      const found = submissionResponse?.groupAssessmentSubmission ?? submissionResponse?.data ?? submissionResponse
+      assessmentId = found?.assessmentSection?.assessmentId?._id
+    } catch (e) {
+      console.error('Failed to fetch group submission', e)
+      return null
+    }
+    if (!assessmentId) {
+      console.error('Group submission not found or has no assessment:', groupSubmissionId.value)
+      return null
+    }
+
+    // 2. Fetch the primary assessment details
+    const assessmentResponse: any = await $fetch(`${API_BASE}/api/admin/assessments/${assessmentId}`, {
       headers: { Authorization: `${useAuthToken().value}` },
     });
     console.log('Assessment API Response:', assessmentResponse);
@@ -148,33 +191,26 @@ const { data, status } = await useAsyncData<AssessmentPageData | null>(
     return { assessment: assessmentDetail, teacher: null };
   },
   {
-    // This ensures the data re-fetches if you navigate between assessments without a full page reload
-    watch: [assessmentId]
+    watch: [groupSubmissionId]
   }
 );
 
-// Fetch the specific submission for this assessment within the section
+// Fetch the specific submission by id
 const { data: submission, status: submissionStatus } = await useAsyncData<GroupSubmission | null>(
-  `group-submission-${sectionId.value}-${assessmentId.value}`,
+  `group-submission-${groupSubmissionId.value}`,
   async () => {
-    if (!sectionId.value || !assessmentId.value) return null
+    if (!groupSubmissionId.value) return null
     try {
-      // This endpoint gets all submissions for a section. We need to find the one we want.
-      const response: any = await $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/group-submission/section/${sectionId.value}`, {
+      const response: any = await $fetch(`${API_BASE}/api/admin/group-submission/${groupSubmissionId.value}`, {
         headers: { Authorization: `${useAuthToken().value}` }
       })
-      const submissions = response?.groupAssessmentSubmissions ?? response?.data ?? response?.groupSubmissions ?? response
-      if (Array.isArray(submissions)) {
-        // Find the submission that matches our current assessmentId
-        const found = submissions.find(s => s.assessmentSection?.assessmentId?._id === assessmentId.value)
-        return found || null
-      }
+      return response?.groupAssessmentSubmission ?? response?.data ?? response ?? null
     } catch (e) {
-      console.error('Failed to fetch group submissions', e)
+      console.error('Failed to fetch group submission', e)
     }
     return null
   },
-  { watch: [sectionId, assessmentId] }
+  { watch: [groupSubmissionId] }
 )
 
 // Computed properties to easily access the nested data in the template
@@ -208,10 +244,24 @@ function getEmbedUrl(url: string): string {
 
 const uploadVideoLink = () => { previewUrl.value = getEmbedUrl(videoLink.value) }
 
+function confirmAttachLink() {
+  const url = getEmbedUrl(videoLink.value)
+  if (url) {
+    attachedLinkUrl.value = url
+    if (uploadedVideoUrl.value) {
+      URL.revokeObjectURL(uploadedVideoUrl.value)
+      uploadedVideoUrl.value = null
+    }
+  }
+  isAttachLinkModalOpen.value = false
+  videoLink.value = ''
+  previewUrl.value = ''
+}
+
 watch(isAttachLinkModalOpen, (isOpen) => {
   if (!isOpen) {
-    previewUrl.value = '';
-    videoLink.value = '';
+    previewUrl.value = ''
+    videoLink.value = ''
   }
 })
 </script>
@@ -226,12 +276,12 @@ watch(isAttachLinkModalOpen, (isOpen) => {
       <UPageCard>
         <UContainer>
           <UPageHeader :title="assessment.title" style="border-bottom: 0; padding-bottom: 0;">
+            <div v-if="submission?.assessmentSection?.sectionId?.name" class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400">
+              Section: {{ submission.assessmentSection.sectionId.name }}
+            </div>
             <div v-if="teacher" class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400">
               Teacher: {{ teacher.firstName }} {{ teacher.lastName }}
             </div>
-            <div class="text-xl font-medium mt-2">By: Skizzo <!-- retrieve student name from API --></div>
-            <div class="text-lg mt-2 text-gray-500 dark:text-gray-400">Submitted: {{ new
-              Date(assessment.createdAt).toLocaleDateString() }}</div>
           </UPageHeader>
         </UContainer>
       </UPageCard>
@@ -250,23 +300,58 @@ watch(isAttachLinkModalOpen, (isOpen) => {
                   referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
                   class="w-1/2 aspect-video"></iframe>
               </template>
+              <template v-else-if="attachedLinkUrl">
+                <iframe :src="attachedLinkUrl"
+                  title="Video (attached link)" frameborder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
+                  class="w-1/2 aspect-video rounded-lg"></iframe>
+              </template>
+              <template v-else-if="uploadedVideoUrl">
+                <video :src="uploadedVideoUrl" controls class="w-1/2 aspect-video rounded-lg"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></video>
+              </template>
               <div v-else class="flex items-center justify-center h-full w-1/2 bg-gray-100 dark:bg-gray-800 rounded-lg" style="aspect-ratio: 16 / 9;">
                 <p class="text-gray-500 dark:text-gray-400">No video attached yet</p>
               </div>
             </UContainer>
 
 
-            <div>
+            <div class="grid grid-cols-3 gap-2 w-full col-span-full">
               <!-- Hidden file input -->
-              <input ref="fileInput" type="file" class="hidden" />
-
-              <!-- Visible UButton that triggers the input -->
-              <UButton block icon="i-lucide-upload" color="primary" variant="solid" @click="triggerFileInput">Upload
-                Assessment Video</UButton>
+              <input ref="fileInput" type="file" accept="video/*" class="hidden" @change="onFileSelected" />
+              <UButton block icon="i-lucide-upload" size="lg" color="primary" variant="solid"
+                @click="triggerFileInput" class="w-full">Upload Assessment Video</UButton>
+              <UButton block icon="i-lucide-link" size="lg" color="primary" variant="solid"
+                @click="isAttachLinkModalOpen = true" class="w-full">Attach Video Link</UButton>
+              <div class="min-w-0">
+                <UPopover :content="{ align: 'center', side: 'top' }">
+                  <UButton block icon="i-lucide-check" size="lg" color="primary" variant="solid" class="w-full">Mark as Live Submission</UButton>
+                  <template #content="{ close }">
+                    <UPageCard>Are you sure you want to mark this as a live submission?
+                      <div class="flex justify-center gap-2">
+                        <UButton block>Yes</UButton>
+                        <UButton block color="error" @click="close">No</UButton>
+                      </div>
+                    </UPageCard>
+                  </template>
+                </UPopover>
+              </div>
             </div>
 
-            <UButton block icon="i-lucide-link" size="lg" color="primary" variant="solid"
-              @click="isAttachLinkModalOpen = true">Attach Video Link</UButton>
+            <div class="w-full col-span-full">
+              <UButton
+                block
+                icon="i-lucide-send"
+                size="lg"
+                color="primary"
+                variant="solid"
+                :disabled="!uploadedVideoUrl && !attachedLinkUrl"
+                class="w-full disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Submit Video
+              </UButton>
+            </div>
 
             <!-- Modal for Attaching Video Link -->
             <UModal title="Attach Video Link" v-model:open="isAttachLinkModalOpen">
@@ -280,43 +365,28 @@ watch(isAttachLinkModalOpen, (isOpen) => {
                       <div class="flex items-center gap-2">
                         <UInput v-model="videoLink" placeholder="Paste a YouTube link here" class="flex-1"
                           @keyup.enter="uploadVideoLink" />
-                        <UButton @click="uploadVideoLink">Upload</UButton>
+                        <UButton @click="uploadVideoLink">Preview</UButton>
                       </div>
                     </UFormGroup>
-
-                    <iframe v-if="previewUrl" :src="previewUrl" title="Video Preview" frameborder="0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
-                      class="mt-4 w-full aspect-video rounded-lg"></iframe>
                   </div>
 
+                  <!-- Video preview above the three buttons (Preview, Cancel, Attach Link) -->
+                  <div v-if="previewUrl" class="mb-4">
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Preview</p>
+                    <iframe :src="previewUrl" title="Video Preview" frameborder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
+                      class="w-full aspect-video rounded-lg"></iframe>
+                  </div>
 
                   <div class="flex justify-end gap-2 mt-4">
                     <UButton variant="outline" @click="isAttachLinkModalOpen = false">Cancel</UButton>
-                    <UButton color="primary">Attach Link</UButton>
+                    <UButton color="primary" @click="confirmAttachLink">Attach Link</UButton>
                   </div>
 
                 </UContainer>
               </template>
             </UModal>
-
-            <!-- Popover for Marking as live submission -->
-            <UPopover :content="{
-              align: 'center',
-              side: 'top',
-            }">
-              <UButton block icon="i-lucide-check" size="lg" color="primary" variant="solid">Mark as Live Submission
-              </UButton>
-
-              <template #content="{ close }">
-                <UPageCard>Are you sure you want to mark this as a live submission?
-                  <div class="flex justify-center gap-2">
-                    <UButton block>Yes</UButton>
-                    <UButton block color="error" @click="close">No</UButton>
-                  </div>
-                </UPageCard>
-              </template>
-            </UPopover>
 
           </UPageGrid>
         </UContainer>

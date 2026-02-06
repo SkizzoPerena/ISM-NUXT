@@ -837,7 +837,7 @@ const groupAssessmentColumns: TableColumn<Assessment>[] = [
     accessorKey: 'title',
     header: 'Title',
     meta: { class: { td: 'w-1/2' } },
-    cell: ({ row }) => h(NuxtLink, { to: `/details-submissions-group?id=${row.original._id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('title') })
+    cell: ({ row }) => row.getValue('title')
   },
   {
     accessorKey: 'createdAt',
@@ -954,7 +954,12 @@ const groupSubmissionColumns: TableColumn<GroupSubmission>[] = [
     accessorKey: 'assessmentSection',
     header: 'Assessment Title',
     meta: { class: { th: 'w-1/3 min-w-[180px]', td: 'w-1/3 min-w-[180px]' } },
-    cell: ({ row }) => row.original.assessmentSection?.assessmentId?.title ?? '—'
+    cell: ({ row }) => {
+      const title = row.original.assessmentSection?.assessmentId?.title ?? '—'
+      const submissionId = row.original._id
+      if (!submissionId) return title
+      return h(NuxtLink, { to: `/details-submissions-group?id=${submissionId}`, class: 'text-primary font-medium hover:underline' }, { default: () => title })
+    }
   },
   {
     accessorKey: 'submissionURL',
