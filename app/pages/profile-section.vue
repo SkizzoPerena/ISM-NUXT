@@ -305,7 +305,7 @@ const columns: TableColumn<any>[] = [
     cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
       h(UAvatar, { src: row.original.avatar, alt: row.original.name }),
       h('div', undefined, [
-        h(NuxtLink, { to: `/profile-student?id=${row.original.id}`, class: 'font-medium' }, { default: () => row.getValue('name') }),
+        h(NuxtLink, { to: `/profile-student?id=${row.original.id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('name') }),
         h('p', { class: 'text-sm text-gray-500 dark:text-gray-400' }, row.original.email)
       ])
     ])
@@ -350,7 +350,7 @@ const teacher_columns: TableColumn<any>[] = [
     cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
       h(UAvatar, { src: row.original.avatar, alt: row.original.name }),
       h('div', undefined, [
-        h(NuxtLink, { to: `/profile-teacher?id=${row.original.id}`, class: 'font-medium' }, { default: () => row.getValue('name') }),
+        h(NuxtLink, { to: `/profile-teacher?id=${row.original.id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('name') }),
         h('p', { class: 'text-sm text-gray-500 dark:text-gray-400' }, row.original.email)
       ])
     ])
@@ -837,7 +837,7 @@ const groupAssessmentColumns: TableColumn<Assessment>[] = [
     accessorKey: 'title',
     header: 'Title',
     meta: { class: { td: 'w-1/2' } },
-    cell: ({ row }) => row.getValue('title')
+    cell: ({ row }) => h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('title') })
   },
   {
     accessorKey: 'createdAt',
