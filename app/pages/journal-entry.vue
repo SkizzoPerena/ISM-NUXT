@@ -311,8 +311,8 @@ async function generateOrRegenerateAnalysis() {
           </UPageGrid>
           <p v-else class="text-sm text-gray-500 dark:text-gray-400">No answers.</p>
         </section>
-        <section class="mt-6">
-          <div class="flex items-center gap-2 mb-2">
+        <section>
+          <div class="flex items-center gap-2 mb-4">
             <h2 class="text-base font-semibold">Repertoire Entries</h2>
             <UButton v-if="!hasAnalysis && !acknowledged" icon="i-lucide-plus" size="xs" variant="ghost" aria-label="Add repertoire entry" @click="openRepertoireModal" />
           </div>
