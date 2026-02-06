@@ -676,6 +676,30 @@ const { data: journalEntries, status: journalEntriesStatus } = await useAsyncDat
   }
 );
 
+const specialSubmissionsAccordionItems = computed(() => [
+  {
+    label: `Submitted (${submittedSpecialSubmissions.value.length})`,
+    slot: 'submitted-special-submissions',
+    defaultOpen: true,
+  },
+  {
+    label: `Pending (${pendingSpecialSubmissions.value.length})`,
+    slot: 'pending-special-submissions',
+  },
+]);
+
+const individualSubmissionAccordionItems = computed(() => [
+  {
+    label: `Submitted (${submittedIndividualSubmissions.value.length})`,
+    slot: 'submitted-individual-submissions',
+    defaultOpen: true,
+  },
+  {
+    label: `Pending (${pendingIndividualSubmissions.value.length})`,
+    slot: 'pending-individual-submissions',
+  },
+])
+
 // Helper function to format proficiency strings
 function formatProficiency(proficiency: string): string {
   if (!proficiency) return '';
@@ -1284,102 +1308,113 @@ async function onDeleteStudent() {
                   @click="openAssignAssessmentModal"
                 />
               </div>
-
-              <UTable v-model:expanded="assessmentsExpanded" :data="studentAssessments || []" :columns="assessmentcolumns"
-                :ui="{ tr: 'data-[expanded=true]:bg-elevated/50', thead: 'hidden' }" class="flex-1 mt-4 border-t border-default" :loading="studentAssessmentsStatus === 'pending'">
+              <UTable
+                v-model:expanded="assessmentsExpanded"
+                :data="studentAssessments || []"
+                :columns="assessmentcolumns"
+                :ui="{ tr: 'data-[expanded=true]:bg-elevated/50' }"
+                class="mt-4 border-t border-default w-full"
+                :loading="studentAssessmentsStatus === 'pending'"
+              >
                 <template #empty-state>
                   <div class="flex flex-col items-center justify-center py-6 gap-3">
-                    <span class="italic text-sm">No assessments assigned to this student.</span>
+                    <span class="italic text-sm">No special assessments assigned to this student.</span>
                   </div>
                 </template>
                 <template #expanded="{ row }">
-                  <p class="p-4">{{ row.original.instructions }}</p>
+                  <p class="p-4">
+                    {{ row.original.instructions }}
+                  </p>
                 </template>
               </UTable>
             </UContainer>
 
             <UContainer class="mt-8">
-              <div class="text-lg font-semibold mb-2">Submitted Special Assessments ({{ submittedSpecialSubmissions.length }})</div>
-              <UTable
-                v-model:expanded="submittedSpecialExpanded"
-                :data="submittedSpecialSubmissions"
-                :columns="submittedSpecialSubmissionColumns"
-                :ui="{ tr: 'data-[expanded=true]:bg-elevated/50' }"
-                class="border-t border-default w-full table-fixed mt-4"
-                :loading="specialSubmissionsStatus === 'pending'"
-              >
-                <template #empty-state>
-                  <div class="flex flex-col items-center justify-center py-6 gap-3">
-                    <span class="italic text-sm">No submitted special assessments.</span>
-                  </div>
+              <div class="text-lg font-semibold">Assigned Submissions</div>
+              <UAccordion :items="individualSubmissionAccordionItems" multiple class="mt-4">
+                <template #submitted-individual-submissions>
+                  <UTable
+                    v-model:expanded="submittedIndividualExpanded"
+                    :data="submittedIndividualSubmissions"
+                    :columns="submittedIndividualSubmissionColumns"
+                    :ui="{ tr: 'data-[expanded=true]:bg-elevated/50' }"
+                    class="border-t border-default w-full table-fixed"
+                    :loading="individualSubmissionsStatus === 'pending'"
+                  >
+                    <template #empty-state>
+                      <div class="flex flex-col items-center justify-center py-6 gap-3">
+                        <span class="italic text-sm">No submitted individual assessments.</span>
+                      </div>
+                    </template>
+                    <template #expanded="{ row }">
+                      <p class="p-4">{{ row.original.assessmentSection?.assessmentId?.instructions ?? '—' }}</p>
+                    </template>
+                  </UTable>
                 </template>
-                <template #expanded="{ row }">
-                  <p class="p-4">{{ row.original.assessmentStudent?.assessmentId?.instructions ?? '—' }}</p>
+                <template #pending-individual-submissions>
+                  <UTable
+                    v-model:expanded="pendingIndividualExpanded"
+                    :data="pendingIndividualSubmissions"
+                    :columns="pendingIndividualSubmissionColumns"
+                    :ui="{ tr: 'data-[expanded=true]:bg-elevated/50' }"
+                    class="border-t border-default w-full table-fixed"
+                    :loading="individualSubmissionsStatus === 'pending'"
+                  >
+                    <template #empty-state>
+                      <div class="flex flex-col items-center justify-center py-6 gap-3">
+                        <span class="italic text-sm">No pending individual assessments.</span>
+                      </div>
+                    </template>
+                    <template #expanded="{ row }">
+                      <p class="p-4">{{ row.original.assessmentSection?.assessmentId?.instructions ?? '—' }}</p>
+                    </template>
+                  </UTable>
                 </template>
-              </UTable>
+              </UAccordion>
             </UContainer>
 
             <UContainer class="mt-8">
-              <div class="text-lg font-semibold mb-2">Pending Special Assessments ({{ pendingSpecialSubmissions.length }})</div>
-              <UTable
-                v-model:expanded="pendingSpecialExpanded"
-                :data="pendingSpecialSubmissions"
-                :columns="specialSubmissionColumns"
-                :ui="{ tr: 'data-[expanded=true]:bg-elevated/50' }"
-                class="border-t border-default w-full table-fixed mt-4"
-                :loading="specialSubmissionsStatus === 'pending'"
-              >
-                <template #empty-state>
-                  <div class="flex flex-col items-center justify-center py-6 gap-3">
-                    <span class="italic text-sm">No pending special assessments.</span>
-                  </div>
+              <div class="text-lg font-semibold">Special Submissions</div>
+              <UAccordion :items="specialSubmissionsAccordionItems" multiple class="mt-4">
+                <template #submitted-special-submissions>
+                  <UTable
+                    v-model:expanded="submittedSpecialExpanded"
+                    :data="submittedSpecialSubmissions"
+                    :columns="submittedSpecialSubmissionColumns"
+                    :ui="{ tr: 'data-[expanded=true]:bg-elevated/50' }"
+                    class="w-full table-fixed border-t border-default"
+                    :loading="specialSubmissionsStatus === 'pending'"
+                  >
+                    <template #empty-state>
+                      <div class="flex flex-col items-center justify-center py-6 gap-3">
+                        <span class="italic text-sm">No submitted special assessments.</span>
+                      </div>
+                    </template>
+                    <template #expanded="{ row }">
+                      <p class="p-4">{{ row.original.assessmentStudent?.assessmentId?.instructions ?? '—' }}</p>
+                    </template>
+                  </UTable>
                 </template>
-                <template #expanded="{ row }">
-                  <p class="p-4">{{ row.original.assessmentStudent?.assessmentId?.instructions ?? '—' }}</p>
+                <template #pending-special-submissions>
+                  <UTable
+                    v-model:expanded="pendingSpecialExpanded"
+                    :data="pendingSpecialSubmissions"
+                    :columns="specialSubmissionColumns"
+                    :ui="{ tr: 'data-[expanded=true]:bg-elevated/50' }"
+                    class="w-full table-fixed border-t border-default"
+                    :loading="specialSubmissionsStatus === 'pending'"
+                  >
+                    <template #empty-state>
+                      <div class="flex flex-col items-center justify-center py-6 gap-3">
+                        <span class="italic text-sm">No pending special assessments.</span>
+                      </div>
+                    </template>
+                    <template #expanded="{ row }">
+                      <p class="p-4">{{ row.original.assessmentStudent?.assessmentId?.instructions ?? '—' }}</p>
+                    </template>
+                  </UTable>
                 </template>
-              </UTable>
-            </UContainer>
-
-            <UContainer class="mt-8">
-              <div class="text-lg font-semibold mb-2">Submitted Individual Assessments ({{ submittedIndividualSubmissions.length }})</div>
-              <UTable
-                v-model:expanded="submittedIndividualExpanded"
-                :data="submittedIndividualSubmissions"
-                :columns="submittedIndividualSubmissionColumns"
-                :ui="{ tr: 'data-[expanded=true]:bg-elevated/50' }"
-                class="border-t border-default w-full table-fixed mt-4"
-                :loading="individualSubmissionsStatus === 'pending'"
-              >
-                <template #empty-state>
-                  <div class="flex flex-col items-center justify-center py-6 gap-3">
-                    <span class="italic text-sm">No submitted individual assessments.</span>
-                  </div>
-                </template>
-                <template #expanded="{ row }">
-                  <p class="p-4">{{ row.original.assessmentSection?.assessmentId?.instructions ?? '—' }}</p>
-                </template>
-              </UTable>
-            </UContainer>
-
-            <UContainer class="mt-8">
-              <div class="text-lg font-semibold mb-2">Pending Individual Assessments ({{ pendingIndividualSubmissions.length }})</div>
-              <UTable
-                v-model:expanded="pendingIndividualExpanded"
-                :data="pendingIndividualSubmissions"
-                :columns="pendingIndividualSubmissionColumns"
-                :ui="{ tr: 'data-[expanded=true]:bg-elevated/50' }"
-                class="border-t border-default w-full table-fixed mt-4"
-                :loading="individualSubmissionsStatus === 'pending'"
-              >
-                <template #empty-state>
-                  <div class="flex flex-col items-center justify-center py-6 gap-3">
-                    <span class="italic text-sm">No pending individual assessments.</span>
-                  </div>
-                </template>
-                <template #expanded="{ row }">
-                  <p class="p-4">{{ row.original.assessmentSection?.assessmentId?.instructions ?? '—' }}</p>
-                </template>
-              </UTable>
+              </UAccordion>
             </UContainer>
           </template>
 
