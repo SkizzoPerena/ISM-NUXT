@@ -366,6 +366,23 @@ async function onDeleteAssessment() {
                   />
                 </div>
               </template>
+              <template v-if="assessment.supplementaryLinks?.length">
+                <div>
+                  <h3 class="text-lg font-semibold">Supplementary links</h3>
+                  <ul class="mt-2 space-y-2 list-none">
+                    <li v-for="(link, index) in assessment.supplementaryLinks.filter((l: string) => l?.trim())" :key="index">
+                      <a
+                        :href="link.trim()"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-primary hover:underline break-all"
+                      >
+                        {{ link.trim() }}
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </template>
             </div>
           </template>
 
