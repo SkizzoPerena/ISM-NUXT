@@ -63,6 +63,35 @@ const items: NavigationMenuItem[][] = [[{
 
 const collapsed = ref(false)
 
+const isNavigatingBack = ref(false)
+const router = useRouter()
+const nuxtApp = useNuxtApp()
+const showBackButton = ref(false)
+
+function updateBackButtonState() {
+  // window.history.state.back is populated by vue-router and holds the path of the previous page.
+  const previousPath = window.history.state.back
+  // Show the button only if there's a previous page and it's not the login page.
+  showBackButton.value = !!previousPath && previousPath !== '/login'
+}
+
+nuxtApp.hook('page:finish', () => {
+  isNavigatingBack.value = false
+  updateBackButtonState()
+})
+
+function goBack() {
+  isNavigatingBack.value = true
+  router.back()
+  // The loading state is managed by the `isNavigatingBack` ref. It's set to true here
+  // and reset to false by the `page:finish` hook after navigation is complete.
+}
+
+// On component mount (client-side), also check the back button state.
+onMounted(() => {
+  updateBackButtonState()
+})
+
 // Get a reference to our global auth token state.
 const authToken = useAuthToken()
 
@@ -178,7 +207,12 @@ defineShortcuts({
     <!-- Header Navbar -->
     <UDashboardPanel>
       <template #header>
-        <UDashboardNavbar #right #leading>
+        <UDashboardNavbar>
+          <template #leading>
+            <UButton v-if="showBackButton" icon="i-lucide-arrow-left" @click="goBack" :loading="isNavigatingBack" color="neutral" variant="ghost">Go Back</UButton>
+          </template>
+          
+          <template #right>
           <UColorModeButton />
           <UInput class="mr-2" placeholder="Search..." />
 
@@ -189,7 +223,7 @@ defineShortcuts({
           <UDropdownMenu :items="userdropdown">
             <UAvatar :src="user?.profileImageURL" :alt="`${user?.firstName || ''} ${user?.lastName || ''}`" class="ml-2" />
           </UDropdownMenu>
-          
+          </template>
 
         </UDashboardNavbar>
       </template>

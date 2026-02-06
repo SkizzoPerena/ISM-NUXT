@@ -294,9 +294,8 @@ async function generateOrRegenerateAnalysis() {
     </UPageCard>
     <template v-else>
       <UPageCard class="overflow-hidden">
-        <div class="text-lg font-bold">Journal Name: {{ journalName }}</div>
-        <div class="text-gray-600 dark:text-gray-400 mt-1">By: {{ studentName }}</div>
-        <div v-if="durationLabel" class="text-gray-600 dark:text-gray-400 mt-1">Duration: {{ durationLabel }}</div>
+        <div class="text-lg font-bold">{{ journalName }}: {{ studentName }}'s Journal Entry</div>
+        <div v-if="durationLabel" class="text-gray-600 dark:text-gray-400">Duration: {{ durationLabel }}</div>
         <USeparator />
         <section class="mt-4">
           <div class="flex items-center gap-2 mb-2">
@@ -305,9 +304,9 @@ async function generateOrRegenerateAnalysis() {
           </div>
           <UPageGrid v-if="answersEntries.answers.length" class="max-w-full">
             <UPageCard v-for="[key, value] in answersEntries.answers" :key="'answer-' + key" class="my-2 min-w-0">
-              <div class="font-semibold break-words">{{ key }}</div>
-              <USeparator class="my-2" />
-              <div class="text-gray-600 dark:text-gray-400 text-sm break-words">{{ value }}</div>
+              <div class="font-semibold wrap-break-words">{{ key }}</div>
+              <USeparator />
+              <div class="text-gray-600 dark:text-gray-400 text-sm wrap-break-words">{{ value }}</div>
             </UPageCard>
           </UPageGrid>
           <p v-else class="text-sm text-gray-500 dark:text-gray-400">No answers.</p>
@@ -319,18 +318,18 @@ async function generateOrRegenerateAnalysis() {
           </div>
           <UPageGrid v-if="answersEntries.entries.length" class="max-w-full">
             <UPageCard v-for="[key, value] in answersEntries.entries" :key="'entry-' + key" class="my-2 min-w-0">
-              <div class="font-semibold break-words">{{ formatEntryKey(key) }}</div>
-              <USeparator class="my-2" />
-              <div class="text-gray-600 dark:text-gray-400 text-sm break-words">{{ value }}</div>
+              <div class="font-semibold wrap-break-words">{{ formatEntryKey(key) }}</div>
+              <USeparator/>
+              <div class="text-gray-600 dark:text-gray-400 text-sm wrap-break-words">{{ value }}</div>
             </UPageCard>
           </UPageGrid>
           <p v-else class="text-sm text-gray-500 dark:text-gray-400">No repertoire entries.</p>
         </section>
         <USeparator class="my-4" />
-        <section class="mt-4">
+        <section>
           <h2 class="text-base font-semibold mb-2">Journal Analysis</h2>
           <template v-if="hasAnalysis">
-            <div class="p-4 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm whitespace-pre-wrap break-words mb-3">{{ analysisText }}</div>
+            <div class="p-4 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm whitespace-pre-wrap wrap-break-words mb-3">{{ analysisText }}</div>
             <div class="flex gap-2">
               <UButton :loading="isAnalysisLoading" :disabled="isAnalysisLoading" @click="generateOrRegenerateAnalysis">Regenerate Analysis</UButton>
               <UButton variant="outline" @click="openOverrideAnalysisDialog">Override Analysis</UButton>
