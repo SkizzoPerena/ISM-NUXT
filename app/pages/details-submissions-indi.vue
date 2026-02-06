@@ -27,9 +27,9 @@ const items = [
   },
 ] satisfies TabsItem[]
 
+const API_BASE = 'https://noteworthy-z9k0.onrender.com'
 const route = useRoute()
-const assessmentId = computed(() => route.query.id as string)
-const studentId = computed(() => route.query.studentId as string)
+const individualSubmissionId = computed(() => route.query.id as string)
 
 type AssessmentDetail = {
   _id: string
@@ -71,41 +71,47 @@ type IndividualSubmission = {
   _id?: string
   submissionURL?: string
   submissionType?: string
-  assessmentSection?: { assessmentId?: { _id?: string, title?: string } }
+  assessmentSection?: { assessmentId?: { _id?: string, title?: string }; studentId?: { firstName?: string, lastName?: string } }
+  studentId?: { firstName?: string, lastName?: string }
   [key: string]: unknown
 }
 
-// Fetch assessment and its associated teacher details in a single, combined async call
+// Fetch submission by id, then assessment and teacher
 const { data, status } = await useAsyncData<AssessmentPageData | null>(
-  `assessment-page-${assessmentId.value}`,
+  `assessment-page-${individualSubmissionId.value}`,
   async () => {
-    // 1. Fetch the primary assessment details
-    const assessmentResponse: any = await $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/assessments/${assessmentId.value}`, {
+    if (!individualSubmissionId.value) return null
+    let assessmentId: string | undefined
+    try {
+      const submissionResponse: any = await $fetch(`${API_BASE}/api/admin/individual-submission/${individualSubmissionId.value}`, {
+        headers: { Authorization: `${useAuthToken().value}` },
+      })
+      const found = submissionResponse?.individualAssessmentSubmission ?? submissionResponse?.data ?? submissionResponse
+      assessmentId = found?.assessmentSection?.assessmentId?._id
+    } catch (e) {
+      console.error('Failed to fetch individual submission', e)
+      return null
+    }
+    if (!assessmentId) return null
+
+    const assessmentResponse: any = await $fetch(`${API_BASE}/api/admin/assessments/${assessmentId}`, {
       headers: { Authorization: `${useAuthToken().value}` },
     });
-    console.log('Assessment API Response:', assessmentResponse);
-
     const assessmentData = assessmentResponse?.assessment || assessmentResponse?.data || assessmentResponse;
-    if (!assessmentData) {
-      console.error('Assessment data not found in API response:', assessmentResponse);
-      return null;
-    }
+    if (!assessmentData) return null;
 
-    // Fetch rubric details based on rubricId
     let rubric = null;
     if (assessmentData.rubricId) {
       try {
-        const rubricResponse: any = await $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/rubrics/${assessmentData.rubricId}`, {
+        const rubricResponse: any = await $fetch(`${API_BASE}/api/admin/rubrics/${assessmentData.rubricId}`, {
           headers: { Authorization: `${useAuthToken().value}` },
         });
-        console.log('Rubric API Response:', rubricResponse);
         rubric = rubricResponse?.rubric || rubricResponse;
       } catch (error) {
         console.error('Error fetching rubric details:', error);
       }
     }
 
-    // Shape the assessment data into our desired type
     const assessmentDetail: AssessmentDetail = {
       _id: assessmentData._id,
       title: assessmentData.title,
@@ -116,65 +122,54 @@ const { data, status } = await useAsyncData<AssessmentPageData | null>(
       rubricId: assessmentData.rubricId,
       supplementaryImageURL: assessmentData.supplementaryImageURL,
       supplementaryLinks: assessmentData.supplementaryLinks || [],
-      teacherId: assessmentData.teacherId, // This is already an object { _id, email }
+      teacherId: assessmentData.teacherId,
       rubric: rubric,
     };
 
     if (assessmentDetail.teacherId?._id) {
-      console.log(`[Teacher Fetch] assessment has teacherId: ${assessmentDetail.teacherId._id}. Fetching all teachers.`);
-      const teachersResponse: any = await $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/teacher`, {
+      const teachersResponse: any = await $fetch(`${API_BASE}/api/admin/teacher`, {
         headers: { Authorization: `${useAuthToken().value}` },
       });
-      console.log('All Teachers API Response:', teachersResponse);
-
       const allTeachersData = teachersResponse?.data || teachersResponse?.teachers || teachersResponse;
       if (Array.isArray(allTeachersData)) {
         const foundTeacher = allTeachersData.find((t: any) => t._id === assessmentDetail.teacherId._id);
-        if (foundTeacher) {
-          // Return the combined data if teacher is found
-          return { assessment: assessmentDetail, teacher: foundTeacher };
-        } else {
-          console.error(`Teacher with ID ${assessmentDetail.teacherId._id} not found in the list.`);
-        }
-      } else {
-        console.error('Expected an array of teachers, but got:', allTeachersData);
+        if (foundTeacher) return { assessment: assessmentDetail, teacher: foundTeacher };
       }
     }
-
-    // Return assessment data even if teacher is not found or doesn't exist
     return { assessment: assessmentDetail, teacher: null };
   },
-  {
-    // This ensures the data re-fetches if you navigate between assessments without a full page reload
-    watch: [assessmentId]
-  }
+  { watch: [individualSubmissionId] }
 );
 
-// Fetch the specific submission for this assessment for this student
+// Fetch the specific submission by id
 const { data: submission, status: submissionStatus } = await useAsyncData<IndividualSubmission | null>(
-  `individual-submission-${studentId.value}-${assessmentId.value}`,
+  `individual-submission-${individualSubmissionId.value}`,
   async () => {
-    if (!studentId.value || !assessmentId.value) return null
+    if (!individualSubmissionId.value) return null
     try {
-      const response: any = await $fetch(`https://noteworthy-z9k0.onrender.com/api/admin/individual-submission/student/${studentId.value}`, {
+      const response: any = await $fetch(`${API_BASE}/api/admin/individual-submission/${individualSubmissionId.value}`, {
         headers: { Authorization: `${useAuthToken().value}` }
       })
-      const submissions = response?.individualAssessmentSubmissions ?? response?.data ?? response?.individualSubmissions ?? response
-      if (Array.isArray(submissions)) {
-        const found = submissions.find(s => s.assessmentSection?.assessmentId?._id === assessmentId.value)
-        return found || null
-      }
+      return response?.individualAssessmentSubmission ?? response?.data ?? response ?? null
     } catch (e) {
-      console.error('Failed to fetch individual submissions', e)
+      console.error('Failed to fetch individual submission', e)
     }
     return null
   },
-  { watch: [studentId, assessmentId] }
+  { watch: [individualSubmissionId] }
 )
 
 // Computed properties to easily access the nested data in the template
 const assessment = computed(() => data.value?.assessment);
 const teacher = computed(() => data.value?.teacher);
+const assessmentTitle = computed(() =>
+  assessment.value?.title ?? submission.value?.assessmentSection?.assessmentId?.title ?? '—'
+);
+const studentName = computed(() => {
+  const s = submission.value?.studentId ?? submission.value?.assessmentSection?.studentId
+  if (!s) return ''
+  return [s.firstName, s.lastName].filter(Boolean).join(' ') || '—'
+});
 const submissionUrl = computed(() => {
   if (submission.value?.submissionURL) {
     return getEmbedUrl(submission.value.submissionURL)
@@ -220,13 +215,13 @@ watch(isAttachLinkModalOpen, (isOpen) => {
     <template v-else-if="assessment && data">
       <UPageCard>
         <UContainer>
-          <UPageHeader :title="assessment.title" style="border-bottom: 0; padding-bottom: 0;">
+          <UPageHeader :title="assessmentTitle" style="border-bottom: 0; padding-bottom: 0;">
+            <div v-if="studentName" class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400">
+              Student: {{ studentName }}
+            </div>
             <div v-if="teacher" class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400">
               Teacher: {{ teacher.firstName }} {{ teacher.lastName }}
             </div>
-            <div class="text-xl font-medium mt-2">By: Skizzo <!-- retrieve student name from API --></div>
-            <div class="text-lg mt-2 text-gray-500 dark:text-gray-400">Submitted: {{ new
-              Date(assessment.createdAt).toLocaleDateString() }}</div>
           </UPageHeader>
         </UContainer>
       </UPageCard>

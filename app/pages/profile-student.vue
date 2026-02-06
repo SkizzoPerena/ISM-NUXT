@@ -47,7 +47,7 @@ type SpecialSubmission = {
   _id?: string
   submissionURL?: string
   submissionType?: string
-  assessmentStudent?: { assessmentId?: { title?: string; instructions?: string } }
+  assessmentStudent?: { assessmentId?: { _id?: string; title?: string; instructions?: string } }
   [key: string]: unknown
 }
 
@@ -55,7 +55,7 @@ type IndividualSubmission = {
   _id?: string
   submissionURL?: string
   submissionType?: string
-  assessmentSection?: { assessmentId?: { title?: string; instructions?: string } }
+  assessmentSection?: { assessmentId?: { _id?: string; title?: string; instructions?: string } }
   [key: string]: unknown
 }
 
@@ -810,7 +810,12 @@ const specialSubmissionColumns: TableColumn<SpecialSubmission>[] = [
     accessorKey: 'assessmentStudent',
     header: 'Assessment Title',
     meta: { class: { th: 'min-w-[180px]', td: 'min-w-[180px]' } },
-    cell: ({ row }) => row.original.assessmentStudent?.assessmentId?.title ?? '—'
+    cell: ({ row }) => {
+      const title = row.original.assessmentStudent?.assessmentId?.title ?? '—'
+      const submissionId = row.original._id
+      if (!submissionId) return title
+      return h(NuxtLink, { to: `/details-submissions-special?id=${submissionId}`, class: 'text-primary font-medium hover:underline' }, { default: () => title })
+    }
   },
   {
     id: 'expand',
@@ -838,7 +843,12 @@ const submittedSpecialSubmissionColumns: TableColumn<SpecialSubmission>[] = [
     accessorKey: 'assessmentStudent',
     header: 'Assessment Title',
     meta: { class: { th: 'min-w-[140px] max-w-[200px]', td: 'min-w-[140px] max-w-[200px]' } },
-    cell: ({ row }) => row.original.assessmentStudent?.assessmentId?.title ?? '—'
+    cell: ({ row }) => {
+      const title = row.original.assessmentStudent?.assessmentId?.title ?? '—'
+      const submissionId = row.original._id
+      if (!submissionId) return title
+      return h(NuxtLink, { to: `/details-submissions-special?id=${submissionId}`, class: 'text-primary font-medium hover:underline' }, { default: () => title })
+    }
   },
   {
     accessorKey: 'submissionURL',
@@ -883,7 +893,12 @@ const submittedIndividualSubmissionColumns: TableColumn<IndividualSubmission>[] 
     accessorKey: 'assessmentSection',
     header: 'Assessment Title',
     meta: { class: { th: 'min-w-[140px] max-w-[200px]', td: 'min-w-[140px] max-w-[200px]' } },
-    cell: ({ row }) => row.original.assessmentSection?.assessmentId?.title ?? '—'
+    cell: ({ row }) => {
+      const title = row.original.assessmentSection?.assessmentId?.title ?? '—'
+      const submissionId = row.original._id
+      if (!submissionId) return title
+      return h(NuxtLink, { to: `/details-submissions-indi?id=${submissionId}`, class: 'text-primary font-medium hover:underline' }, { default: () => title })
+    }
   },
   {
     accessorKey: 'submissionURL',
@@ -927,7 +942,12 @@ const pendingIndividualSubmissionColumns: TableColumn<IndividualSubmission>[] = 
     accessorKey: 'assessmentSection',
     header: 'Assessment Title',
     meta: { class: { th: 'min-w-[180px]', td: 'min-w-[180px]' } },
-    cell: ({ row }) => row.original.assessmentSection?.assessmentId?.title ?? '—'
+    cell: ({ row }) => {
+      const title = row.original.assessmentSection?.assessmentId?.title ?? '—'
+      const submissionId = row.original._id
+      if (!submissionId) return title
+      return h(NuxtLink, { to: `/details-submissions-indi?id=${submissionId}`, class: 'text-primary font-medium hover:underline' }, { default: () => title })
+    }
   },
   {
     id: 'expand',
