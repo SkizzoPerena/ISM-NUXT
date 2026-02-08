@@ -1114,7 +1114,7 @@ async function onDeleteStudent() {
             width="200"
             height="200"
             class="rounded-full"
-            fit="fill"
+            fit="cover"
             preload
           />
           <UContainer class="ml-8 w-full">

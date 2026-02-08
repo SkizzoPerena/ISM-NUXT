@@ -309,6 +309,7 @@ async function onProfilePicSelected(event: Event) {
                 :alt="`${user.firstName} ${user.lastName}`"
                 width="200"
                 height="200"
+                fit="cover"
                 class="rounded-full block"
               />
               <span
