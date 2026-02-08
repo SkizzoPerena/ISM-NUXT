@@ -67,6 +67,11 @@ const isNavigatingBack = ref(false)
 const router = useRouter()
 const nuxtApp = useNuxtApp()
 const showBackButton = ref(false)
+const isNavigating = ref(false)
+
+nuxtApp.hook('page:start', () => {
+  isNavigating.value = true
+})
 
 function updateBackButtonState() {
   // window.history.state.back is populated by vue-router and holds the path of the previous page.
@@ -77,6 +82,7 @@ function updateBackButtonState() {
 
 nuxtApp.hook('page:finish', () => {
   isNavigatingBack.value = false
+  isNavigating.value = false
   updateBackButtonState()
 })
 
@@ -224,6 +230,8 @@ defineShortcuts({
           </template>
 
         </UDashboardNavbar>
+        <UProgress v-if="isNavigating" animation="swing" size="2xs"/>
+        
       </template>
       <template #body>
         <!-- PER-PAGE CODE STARTS HERE -->
