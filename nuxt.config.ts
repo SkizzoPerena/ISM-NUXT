@@ -17,6 +17,6 @@ export default defineNuxtConfig({
     pageTransition: { name: 'page', mode: 'out-in' },
   },
   image: {
-    // Options
-  }
+    domains: ['ism-noteworthy.s3.amazonaws.com', 'placehold.co'],
+  },
 })
