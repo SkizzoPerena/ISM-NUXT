@@ -787,8 +787,8 @@ async function submitOverrideAnalysis() {
                   </div>
 
                   <div class="flex justify-end gap-2 mt-4">
-                    <UButton variant="outline" @click="isAttachLinkModalOpen = false">Cancel</UButton>
-                    <UButton color="primary" @click="confirmAttachLink">Attach Link</UButton>
+                    <UButton variant="outline" block @click="isAttachLinkModalOpen = false">Cancel</UButton>
+                    <UButton color="primary" block @click="confirmAttachLink">Attach Link</UButton>
                   </div>
 
                 </UContainer>
