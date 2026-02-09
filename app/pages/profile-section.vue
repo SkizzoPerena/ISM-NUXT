@@ -420,7 +420,36 @@ async function onSubmitEdit(event: FormSubmitEvent<EditSchema>) {
   }
 }
 
-// END EDIT SECTION FORM
+// DELETE SECTION
+const isDeleteSectionOpen = ref(false)
+const isDeleteSectionSubmitting = ref(false)
+
+function openDeleteSectionModal() {
+  isDeleteSectionOpen.value = true
+}
+
+async function confirmDeleteSection() {
+  if (!sectionId.value || isDeleteSectionSubmitting.value) return
+  isDeleteSectionSubmitting.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/sections/archive/${sectionId.value}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `${useAuthToken().value}`
+      }
+    })
+    toast.add({ title: 'Success', description: 'Section archived successfully.', color: 'success' })
+    isDeleteSectionOpen.value = false
+    await navigateTo('/sections')
+  } catch (error) {
+    console.error('Error archiving section:', error)
+    toast.add({ title: 'Error', description: 'Failed to archive section.', color: 'error' })
+  } finally {
+    isDeleteSectionSubmitting.value = false
+  }
+}
+
+// END DELETE SECTION
 
 // ADD STUDENT TO SECTION (sectionless students)
 const isAddStudentOpen = ref(false)
@@ -1075,8 +1104,31 @@ const journalcolumns: TableColumn<Journal>[] = [
       <div class="flex items-center justify-between w-full"
         style="border-bottom: 0; margin-top: auto; padding-bottom: 0;">
         <UPageHeader :title="section.name" style="border-bottom: 0; padding-bottom: 0;" />
-        <UButton icon="i-lucide-pencil" variant="ghost" aria-label="Edit section" @click="openEditModal" />
+        <div class="flex items-center gap-1">
+          <UButton icon="i-lucide-pencil" variant="ghost" aria-label="Edit section" @click="openEditModal" />
+          <UButton icon="i-lucide-trash-2" color="error" variant="ghost" aria-label="Delete section" @click="openDeleteSectionModal" />
+        </div>
       </div>
+
+      <UModal v-model:open="isDeleteSectionOpen" :dismissible="!isDeleteSectionSubmitting">
+        <template #header>
+          <div class="flex items-center justify-between w-full">
+            <h3 class="text-lg font-semibold">Delete Section</h3>
+            <UButton icon="i-lucide-x" variant="ghost" :disabled="isDeleteSectionSubmitting" @click="isDeleteSectionOpen = false" />
+          </div>
+        </template>
+        <template #body>
+          <p class="text-default mb-4">Are you sure you want to archive this section? This action cannot be undone.</p>
+          <div class="flex gap-2 justify-end">
+            <UButton type="button" variant="outline" :disabled="isDeleteSectionSubmitting" @click="isDeleteSectionOpen = false">
+              Cancel
+            </UButton>
+            <UButton color="error" :loading="isDeleteSectionSubmitting" @click="confirmDeleteSection">
+              Delete Section
+            </UButton>
+          </div>
+        </template>
+      </UModal>
 
       <UModal v-model:open="isEditOpen" :dismissible="false">
         <template #header>
