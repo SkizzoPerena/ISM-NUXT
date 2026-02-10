@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 
+const API_BASE = 'https://noteworthy-z9k0.onrender.com'
+const ITEMS_PER_PAGE = 10
+
 const items: NavigationMenuItem[][] = [[{
   label: 'Home',
   icon: 'i-lucide-house',
@@ -61,7 +64,6 @@ const items: NavigationMenuItem[][] = [[{
   target: '_blank'
 }]]
 
-const collapsed = ref(false)
 
 const isNavigatingBack = ref(false)
 const router = useRouter()
@@ -182,9 +184,58 @@ const userdropdown = computed(() => [
   ]
 ])
 
+const collapsed = ref(false)
+
 defineShortcuts({
   c: () => collapsed.value = !collapsed.value
 })
+
+// Activity logs
+type ActivityLog = {
+  _id?: string
+  description: string
+  timestamp: string
+}
+
+const logsPage = ref(1)
+const totalLogs = ref(0)
+
+const { data: logsResponse } = await useAsyncData<{ logs: ActivityLog[]; total?: number }>(
+  `admin-logs-${logsPage.value}`,
+  () =>
+    $fetch(`${API_BASE}/api/admin/logs`, {
+      query: { page: logsPage.value, limit: ITEMS_PER_PAGE },
+      headers: {
+        Authorization: `${useAuthToken().value}`,
+      },
+    }),
+  {
+    watch: [logsPage],
+    transform: (response: any) => {
+      const logs = response?.logs ?? response?.data ?? response
+      const list = Array.isArray(logs) ? logs : []
+      const total =
+        response?.total ??
+        (list.length < ITEMS_PER_PAGE
+          ? (logsPage.value - 1) * ITEMS_PER_PAGE + list.length
+          : logsPage.value * ITEMS_PER_PAGE + 1)
+      totalLogs.value = total
+      return { logs: list, total }
+    },
+  }
+)
+
+const activityLogs = computed(() => logsResponse.value?.logs ?? [])
+const logsTotal = computed(() => logsResponse.value?.total ?? totalLogs.value)
+
+function formatLogTimestamp(ts: string) {
+  if (!ts) return '—'
+  const d = new Date(ts)
+  const date = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })
+  return `${date}, ${time}`
+}
+
 </script>
 
 <template>
@@ -206,7 +257,36 @@ defineShortcuts({
       </template>
 
       <template #footer="{ collapsed }">
-<UNavigationMenu :collapsed="collapsed" :items="items[1]" orientation="vertical" class="mt-auto" />
+
+
+        <UDrawer title="Activity Log" :handle="false">
+
+            <UButton block label="Activity Log" variant="outline" color="neutral" size="md" icon="i-lucide-logs"/>
+
+          <template #content>
+            <UContainer class="my-5">
+      <div class="flex justify-between"><div class="font-semibold text-2xl">Activity Log</div><UButton variant="ghost" icon="i-lucide-x" color="error"></UButton></div>
+      <USeparator class="mt-4"/>
+      <ul v-if="activityLogs.length" class="divide-y divide-default  border-default overflow-hidden w-full">
+        <li
+          v-for="log in activityLogs"
+          :key="log._id ?? log.timestamp + log.description"
+          class="flex items-start justify-between gap-4 px-4 py-3 text-left w-full"
+        >
+          <span class="text-default flex-1 min-w-0">{{ log.description }}</span>
+          <span class="text-muted text-sm shrink-0">{{ formatLogTimestamp(log.timestamp) }}</span>
+        </li>
+      </ul>
+      <p v-else class="text-muted text-sm">No activity logs yet.</p>
+      <div v-if="logsTotal > ITEMS_PER_PAGE" class="flex justify-center pt-2">
+        <UPagination v-model:page="logsPage" :total="logsTotal" :items-per-page="ITEMS_PER_PAGE"/>
+      </div>
+</UContainer>
+
+          </template>
+
+</UDrawer>
+
       </template>
     </UDashboardSidebar>
 
