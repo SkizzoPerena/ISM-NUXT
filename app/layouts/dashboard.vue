@@ -236,6 +236,8 @@ function formatLogTimestamp(ts: string) {
   return `${date}, ${time}`
 }
 
+const open = ref(false)
+
 </script>
 
 <template>
@@ -259,13 +261,13 @@ function formatLogTimestamp(ts: string) {
       <template #footer="{ collapsed }">
 
 
-        <UDrawer title="Activity Log" :handle="false">
+        <UDrawer title="Activity Log" :handle="false" v-model:open="open">
 
             <UButton block label="Activity Log" variant="outline" color="neutral" size="md" icon="i-lucide-logs"/>
 
           <template #content>
             <UContainer class="my-5">
-      <div class="flex justify-between"><div class="font-semibold text-2xl">Activity Log</div><UButton variant="ghost" icon="i-lucide-x" color="error"></UButton></div>
+      <div class="flex justify-between"><div class="font-bold text-lg">Activity Log</div><UButton variant="ghost" icon="i-lucide-x"  @click="open = false" color="error"></UButton></div>
       <USeparator class="mt-4"/>
       <ul v-if="activityLogs.length" class="divide-y divide-default  border-default overflow-hidden w-full">
         <li
