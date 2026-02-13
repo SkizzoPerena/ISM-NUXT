@@ -31,7 +31,7 @@ const { data, status } = await useAsyncData('guardians',
         email: guardian.email,
         firstName: guardian.firstName,
         lastName: guardian.lastName,
-        name: guardian.firstName + ' ' + guardian.lastName,
+        name: guardian.lastName + ', ' + guardian.firstName,
         gender: guardian.gender,
         profileImageURL: guardian.profileImageURL,
       }))

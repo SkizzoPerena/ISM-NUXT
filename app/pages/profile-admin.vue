@@ -346,8 +346,8 @@ async function onProfilePicSelected(event: Event) {
   <UButton block icon="i-lucide-shield-user" size="lg" color="primary" variant="solid" @click="openChangePasswordModal">
     Change Password
   </UButton>
-  <UButton block icon="i-lucide-user-plus" size="lg" color="primary" variant="solid" @click="openCreateAdminModal">
-    Create New Admin Account
+  <UButton block icon="i-lucide-users" size="lg" color="primary" variant="solid" @click="openCreateAdminModal">
+    All Admins
   </UButton>
   <UButton block icon="i-lucide-log-out" size="lg" color="warning" variant="solid" @click="signOut">
     Sign out
