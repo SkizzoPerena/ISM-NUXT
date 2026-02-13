@@ -346,7 +346,7 @@ async function onProfilePicSelected(event: Event) {
   <UButton block icon="i-lucide-shield-user" size="lg" color="primary" variant="solid" @click="openChangePasswordModal">
     Change Password
   </UButton>
-  <UButton block icon="i-lucide-users" size="lg" color="primary" variant="solid" @click="openCreateAdminModal">
+  <UButton block icon="i-lucide-users" size="lg" color="primary" variant="solid" to="/admins">
     All Admins
   </UButton>
   <UButton block icon="i-lucide-log-out" size="lg" color="warning" variant="solid" @click="signOut">
@@ -399,7 +399,7 @@ async function onProfilePicSelected(event: Event) {
       </UModal>
 
       <!-- Change Password Modal -->
-      <UModal v-model:open="isChangePasswordOpen" :dismissible="!isChangePasswordSubmitting">
+      <!-- <UModal v-model:open="isChangePasswordOpen" :dismissible="!isChangePasswordSubmitting">
         <template #header>
           <div class="flex items-center justify-between w-full">
             <h3 class="text-lg font-semibold">Change Password</h3>
@@ -453,10 +453,10 @@ async function onProfilePicSelected(event: Event) {
             </div>
           </UForm>
         </template>
-      </UModal>
+      </UModal> -->
 
       <!-- Create New Admin Account Modal -->
-      <UModal v-model:open="isCreateAdminOpen" :dismissible="!isCreateAdminSubmitting">
+      <!-- <UModal v-model:open="isCreateAdminOpen" :dismissible="!isCreateAdminSubmitting">
         <template #header>
           <div class="flex items-center justify-between w-full">
             <h3 class="text-lg font-semibold">Create New Admin Account</h3>
@@ -505,7 +505,7 @@ async function onProfilePicSelected(event: Event) {
             </div>
           </UForm>
         </template>
-      </UModal>
+      </UModal> -->
 
     </template>
     <UPageCard v-else class="flex items-center justify-center h-64">
