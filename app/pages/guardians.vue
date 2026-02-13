@@ -51,20 +51,50 @@ type Guardian = {
   profileImageURL: string
 }
 
+const sort = ref({ column: 'name', direction: 'asc' as const })
+
+const sortedData = computed(() => {
+  if (!data.value) {
+    return []
+  }
+
+  const { column, direction } = sort.value
+
+  if (column && direction) {
+    // Create a mutable copy of the array to sort
+    return [...data.value].sort((a, b) => {
+      const aValue = a[column as keyof Guardian]
+      const bValue = b[column as keyof Guardian]
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        // Use localeCompare for proper alphabetical sorting that handles different locales
+        return direction === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
+      }
+
+      // Fallback for non-string types
+      if (aValue < bValue) return direction === 'asc' ? -1 : 1
+      if (aValue > bValue) return direction === 'asc' ? 1 : -1
+      return 0
+    })
+  }
+  return data.value
+})
+
 const UAvatar = resolveComponent('UAvatar')
 const NuxtLink = resolveComponent('NuxtLink')
+const UButton = resolveComponent('UButton')
 
 const columns: TableColumn<Guardian>[] = [
   {
     accessorKey: 'name',
-    header: 'Name',
     cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
       h(UAvatar, { src: row.original.profileImageURL, alt: row.original.name }),
       h('div', undefined, [
         h(NuxtLink, { to: `/profile-guardian?id=${row.original._id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.original.name }),
         h('p', { class: 'text-sm text-gray-500 dark:text-gray-400' }, row.original.email)
       ])
-    ])
+    ]),
+    header: 'Name'
   },
   {
     accessorKey: '_id',
@@ -211,7 +241,7 @@ async function onSubmitCreate(event: FormSubmitEvent<CreateSchema>) {
         Wrapping the component in <ClientOnly> ensures it only renders in the browser, avoiding the error.
       -->
       <ClientOnly>
-        <UTable ref="table" v-model:column-filters="columnFilters" sticky :data="data || []" :columns="columns" :loading="status === 'pending'" class="flex-1 max-h-[70vh]" />
+        <UTable ref="table" v-model:column-filters="columnFilters" v-model:sort="sort" sticky :data="sortedData" :columns="columns" :loading="status === 'pending'" class="flex-1 max-h-[70vh]" />
       </ClientOnly>
     </UPageCard>
   </UContainer>
