@@ -79,7 +79,7 @@ type StudentDetail = {
   profileImageURL: string
   assignedSections: SectionInfo[]
   analysis?: string
-  overallRating?: string
+  rating?: string
 }
 
 // Fetch student details from the API using the ID from the URL
@@ -106,7 +106,7 @@ const { data: student, status, refresh: refreshStudent } = await useAsyncData<St
         profileImageURL: studentData.profileImageURL,
         assignedSections: studentData.assignedSections || [],
         analysis: studentData.analysis,
-        overallRating: studentData.overallRating,
+        rating: studentData.rating,
       }
     },
     watch: [studentId]
@@ -513,6 +513,35 @@ async function submitOverrideAnalysis() {
     toast.add({ title: 'Error', description: message, color: 'error' })
   } finally {
     isOverridingAnalysis.value = false
+  }
+}
+
+// Student Rating
+const ratingIcon = computed(() => {
+  if (!student.value?.rating) return ''
+  switch (student.value.rating.toLowerCase()) {
+    case 'growing':
+      return 'i-lucide-sprout'
+    case 'emerging':
+      return 'i-lucide-bird'    
+    case 'thriving':
+      return 'i-lucide-rocket'
+    default:
+      return ''
+  }
+})
+
+function getRatingColor(rating?: string) {
+  if (!rating) return 'primary'
+  switch (rating.toLowerCase()) {
+    case 'growing':
+      return 'success'
+    case 'emerging':
+      return 'warning'
+    case 'thriving':
+      return 'secondary'
+    default:
+      return 'primary'
   }
 }
 
@@ -1354,7 +1383,8 @@ async function onDeleteStudent() {
 
                   <UContainer class="mt-8">
         <div v-if="!hasAnalysis" class="w-full col-span-full">
-          <div class="w-full align-center mt-2">No analysis yet</div>
+          <p class="font-semibold text-lg">Student Summary</p>
+          <div class="flex items-center justify-center w-full mb-4">No student summary yet</div>
           <UButton
             block
             icon="i-lucide-sparkles"
@@ -1368,13 +1398,15 @@ async function onDeleteStudent() {
           </UButton>
         </div>
         <div v-else class="space-y-4">
-          <div class="flex justify-between items-baseline">
+
             <p class="font-semibold text-lg">Student Summary</p>
-            <p v-if="student?.overallRating" class="text-sm font-medium text-gray-600 dark:text-gray-300">
-              Overall Rating: <UBadge color="primary" variant="subtle">{{ student.overallRating }}</UBadge>
-            </p>
-          </div>
-            <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ student?.analysis }}</p>
+            <div v-if="student?.rating">
+              <p class="text-sm font-medium text-gray-600 dark:text-gray-300">
+                Overall Rating: <UBadge :icon="ratingIcon":color="getRatingColor(student.rating)" size="lg" variant="subtle">{{ student.rating }}</UBadge>
+              </p>
+            </div>
+
+            <p v-if="student?.analysis" class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ student?.analysis }}</p>
 
           <div class="flex flex-wrap gap-2">
             <UButton
