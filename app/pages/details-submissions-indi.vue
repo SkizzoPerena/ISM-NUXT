@@ -580,47 +580,34 @@ async function submitOverrideAnalysis() {
                 </template>
               </UAccordion>
 
-              <UButton
-                v-if="!hasAnalysis"
-                block
-                icon="i-lucide-sparkles"
-                size="lg"
-                color="primary"
-                variant="solid"
-                :loading="isGeneratingAnalysis"
-                :disabled="isGeneratingAnalysis"
-                @click="generateAnalysis"
-              >
-                Generate Analysis
-              </UButton>
 
+
+              <!-- No analysis yet: show Generate Analysis only -->
+              <div v-if="!hasAnalysis">
+                <div class="flex justify-center w-full mb-4">No analysis yet</div>
+                <UButton block icon="i-lucide-sparkles" color="primary" variant="solid"
+                  :loading="isGeneratingAnalysis" :disabled="isGeneratingAnalysis" @click="generateAnalysis">
+                  Generate Analysis
+                </UButton>
+              </div>
+
+              <!-- Analysis exists: show analysis, then Regenerate + Override -->
               <template v-else>
-                <div class="rounded-lg border border-default p-4">
-                  <p class="font-semibold text-lg mb-2">Analysis</p>
+                <UPageCard>
+                  <p class="font-semibold text-lg">Analysis</p>
                   <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ submission?.analysis }}</p>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                  <UButton
-                    icon="i-lucide-refresh-cw"
-                    size="lg"
-                    color="primary"
-                    variant="solid"
-                    :loading="isGeneratingAnalysis"
-                    :disabled="isGeneratingAnalysis"
-                    @click="generateAnalysis"
-                  >
-                    Regenerate Analysis
-                  </UButton>
-                  <UButton
-                    icon="i-lucide-edit"
-                    size="lg"
-                    color="neutral"
-                    variant="outline"
-                    @click="openOverrideDialog"
-                  >
-                    Override Analysis
-                  </UButton>
-                </div>
+
+                  <div class="flex flex-wrap gap-2">
+                    <UButton icon="i-lucide-refresh-cw" color="primary" variant="solid"
+                      :loading="isGeneratingAnalysis" :disabled="isGeneratingAnalysis" @click="generateAnalysis">
+                      Regenerate Analysis
+                    </UButton>
+                    <UButton icon="i-lucide-edit" color="neutral" variant="outline"
+                      @click="openOverrideDialog">
+                      Override Analysis
+                    </UButton>
+                  </div>
+                </UPageCard>
               </template>
             </div>
 

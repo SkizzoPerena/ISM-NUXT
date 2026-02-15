@@ -78,6 +78,8 @@ type StudentDetail = {
   gender: string
   profileImageURL: string
   assignedSections: SectionInfo[]
+  analysis?: string
+  overallRating?: string
 }
 
 // Fetch student details from the API using the ID from the URL
@@ -103,6 +105,8 @@ const { data: student, status, refresh: refreshStudent } = await useAsyncData<St
         gender: studentData.gender,
         profileImageURL: studentData.profileImageURL,
         assignedSections: studentData.assignedSections || [],
+        analysis: studentData.analysis,
+        overallRating: studentData.overallRating,
       }
     },
     watch: [studentId]
@@ -458,6 +462,60 @@ async function confirmUnassignSection() {
   }
 }
 
+// Student Analysis
+const isGeneratingAnalysis = ref(false)
+const hasAnalysis = computed(() => !!(student.value?.analysis && String(student.value.analysis).trim()))
+
+const isOverrideDialogOpen = ref(false)
+const overrideAnalysisInput = ref('')
+const isOverridingAnalysis = ref(false)
+
+async function generateAnalysis() {
+  if (!studentId.value) return
+  isGeneratingAnalysis.value = true
+  try {
+    const response = await $fetch(`${API_BASE}/api/admin/student/${studentId.value}/summarize`, {
+      method: 'PATCH',
+      headers: { Authorization: `${useAuthToken().value}` },
+    })
+    console.log('Analysis API Response:', response)
+    await refreshStudent()
+    toast.add({ title: 'Success', description: 'Student summary generated.', color: 'success' })
+  } catch (e: any) {
+    console.error('Failed to generate analysis', e)
+    const message = e?.data?.message ?? 'Failed to generate student summary.'
+    toast.add({ title: 'Error', description: message, color: 'error' })
+  } finally {
+    isGeneratingAnalysis.value = false
+  }
+}
+
+function openOverrideDialog() {
+  overrideAnalysisInput.value = student.value?.analysis ?? ''
+  isOverrideDialogOpen.value = true
+}
+
+async function submitOverrideAnalysis() {
+  if (!studentId.value) return
+  isOverridingAnalysis.value = true
+  try {
+    await $fetch(`${API_BASE}/api/admin/student/${studentId.value}/override`, {
+      method: 'PATCH',
+      headers: { Authorization: `${useAuthToken().value}` },
+      body: { analysis: overrideAnalysisInput.value },
+    })
+    await refreshStudent()
+    isOverrideDialogOpen.value = false
+    toast.add({ title: 'Success', description: 'Summary overridden.', color: 'success' })
+  } catch (e: any) {
+    console.error('Failed to override analysis', e)
+    const message = e?.data?.message ?? 'Failed to override summary.'
+    toast.add({ title: 'Error', description: message, color: 'error' })
+  } finally {
+    isOverridingAnalysis.value = false
+  }
+}
+
 // Fetch assigned guardians for the student
 const { data: guardians, status: guardiansStatus, refresh: refreshGuardians } = await useAsyncData<GuardianInfo[]>(
   `student-guardians-${studentId.value}`,
@@ -726,7 +784,7 @@ function getProficiencyColor(proficiency: string) {
 
 const items = [
   {
-    label: 'Assignments',
+    label: 'Information',
     description: 'Assigned sections, instruments, and guardians.',
     icon: 'i-lucide-clipboard-list',
     slot: 'assignments' as const
@@ -1157,6 +1215,7 @@ async function onDeleteStudent() {
         </div>
       </UPageCard>
 
+
       <UPageCard class="mt-6">
         <UTabs :items="items" variant="link" :ui="{ trigger: 'grow' }" class="gap-4 w-full">
 
@@ -1292,6 +1351,55 @@ async function onDeleteStudent() {
                 </UContainer>
               </div>
             </UPageGrid>
+
+                  <UContainer class="mt-8">
+        <div v-if="!hasAnalysis" class="w-full col-span-full">
+          <div class="w-full align-center mt-2">No analysis yet</div>
+          <UButton
+            block
+            icon="i-lucide-sparkles"
+            color="primary"
+            variant="solid"
+            :loading="isGeneratingAnalysis"
+            :disabled="isGeneratingAnalysis"
+            @click="generateAnalysis"
+          >
+            Generate Student Summary
+          </UButton>
+        </div>
+        <div v-else class="space-y-4">
+          <div class="flex justify-between items-baseline">
+            <p class="font-semibold text-lg">Student Summary</p>
+            <p v-if="student?.overallRating" class="text-sm font-medium text-gray-600 dark:text-gray-300">
+              Overall Rating: <UBadge color="primary" variant="subtle">{{ student.overallRating }}</UBadge>
+            </p>
+          </div>
+            <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ student?.analysis }}</p>
+
+          <div class="flex flex-wrap gap-2">
+            <UButton
+              icon="i-lucide-refresh-cw"
+              size="lg"
+              color="primary"
+              variant="solid"
+              :loading="isGeneratingAnalysis"
+              :disabled="isGeneratingAnalysis"
+              @click="generateAnalysis"
+            >
+              Regenerate Summary
+            </UButton>
+            <UButton
+              icon="i-lucide-edit"
+              size="lg"
+              color="neutral"
+              variant="outline"
+              @click="openOverrideDialog"
+            >
+              Override Summary
+            </UButton>
+          </div>
+        </div>
+      </UContainer>
           </template>
 
           <!-- ASSESSMENTS TAB -->
@@ -1836,6 +1944,21 @@ async function onDeleteStudent() {
               Remove
             </UButton>
           </div>
+        </template>
+      </UModal>
+
+      <!-- Override Analysis Modal -->
+      <UModal v-model:open="isOverrideDialogOpen" title="Override Summary">
+        <template #body>
+          <UContainer class="space-y-4">
+            <UFormGroup label="Summary" name="overrideAnalysis">
+              <UTextarea v-model="overrideAnalysisInput" placeholder="Enter summary text..." :rows="10" class="w-full" />
+            </UFormGroup>
+            <div class="flex justify-end gap-2">
+              <UButton variant="outline" :disabled="isOverridingAnalysis" @click="isOverrideDialogOpen = false">Cancel</UButton>
+              <UButton color="primary" :loading="isOverridingAnalysis" :disabled="isOverridingAnalysis" @click="submitOverrideAnalysis">Submit</UButton>
+            </div>
+          </UContainer>
         </template>
       </UModal>
 

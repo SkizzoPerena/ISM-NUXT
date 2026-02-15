@@ -110,8 +110,8 @@ type GroupSubmission = {
   remarks?: string
   analysis?: string
   rubricAnswers?: Record<string, string>
-  assessmentSection?: { 
-    assessmentId?: { _id?: string, title?: string } 
+  assessmentSection?: {
+    assessmentId?: { _id?: string, title?: string }
     sectionId?: { _id?: string, name?: string }
   }
   [key: string]: unknown
@@ -360,7 +360,7 @@ function uploadFileWithProgress(file: File): Promise<void> {
         try {
           const data = JSON.parse(xhr.responseText)
           if (data?.message) message = data.message
-        } catch (_) {}
+        } catch (_) { }
         reject(new Error(message))
       }
     })
@@ -557,7 +557,8 @@ async function submitOverrideAnalysis() {
       <UPageCard>
         <UContainer>
           <UPageHeader :title="assessment.title" style="border-bottom: 0; padding-bottom: 0;">
-            <div v-if="submission?.assessmentSection?.sectionId?.name" class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400">
+            <div v-if="submission?.assessmentSection?.sectionId?.name"
+              class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400">
               Section: {{ submission.assessmentSection.sectionId.name }}
             </div>
             <div v-if="teacher" class="text-xl font-medium mt-2 text-gray-500 dark:text-gray-400">
@@ -572,29 +573,28 @@ async function submitOverrideAnalysis() {
           <UPageGrid>
             <UContainer class="flex justify-center lg:col-span-3 min-w-0 w-full max-w-full overflow-hidden">
               <div class="w-full max-w-full">
-                <div v-if="submissionStatus === 'pending'" class="flex items-center justify-center w-full aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg">
+                <div v-if="submissionStatus === 'pending'"
+                  class="flex items-center justify-center w-full aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg">
                   <p>Loading submission...</p>
                 </div>
                 <template v-else-if="isSubmittedState">
-                  <iframe v-if="submissionUrl" :src="submissionUrl"
-                    title="YouTube video player" frameborder="0"
+                  <iframe v-if="submissionUrl" :src="submissionUrl" title="YouTube video player" frameborder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
                     class="w-full aspect-video rounded-lg max-w-full"></iframe>
-                  <div v-else class="flex items-center justify-center w-full aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg">
+                  <div v-else
+                    class="flex items-center justify-center w-full aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg">
                     <p class="text-gray-600 dark:text-gray-300 text-lg">This assessment was performed live</p>
                   </div>
                 </template>
                 <template v-else-if="submissionUrl">
-                  <iframe :src="submissionUrl"
-                    title="YouTube video player" frameborder="0"
+                  <iframe :src="submissionUrl" title="YouTube video player" frameborder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
                     class="w-full aspect-video max-w-full"></iframe>
                 </template>
                 <template v-else-if="attachedLinkUrl">
-                  <iframe :src="attachedLinkUrl"
-                    title="Video (attached link)" frameborder="0"
+                  <iframe :src="attachedLinkUrl" title="Video (attached link)" frameborder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
                     class="w-full aspect-video rounded-lg max-w-full"></iframe>
@@ -603,7 +603,8 @@ async function submitOverrideAnalysis() {
                   <video :src="uploadedVideoUrl" controls class="w-full aspect-video rounded-lg max-w-full"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></video>
                 </template>
-                <div v-else class="flex items-center justify-center w-full aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg">
+                <div v-else
+                  class="flex items-center justify-center w-full aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg">
                   <p class="text-gray-500 dark:text-gray-400">No video attached yet</p>
                 </div>
               </div>
@@ -619,11 +620,13 @@ async function submitOverrideAnalysis() {
                   @click="isAttachLinkModalOpen = true" class="w-full">Attach Video Link</UButton>
                 <div class="min-w-0">
                   <UPopover :content="{ align: 'center', side: 'top' }">
-                    <UButton block icon="i-lucide-check" size="lg" color="primary" variant="solid" class="w-full">Mark as Live Submission</UButton>
+                    <UButton block icon="i-lucide-check" size="lg" color="primary" variant="solid" class="w-full">Mark
+                      as Live Submission</UButton>
                     <template #content="{ close }">
                       <UPageCard>Are you sure you want to mark this as a live submission?
                         <div class="flex justify-center gap-2">
-                          <UButton block :loading="isMarkingLive" :disabled="isMarkingLive" @click="markAsLiveSubmission(close)">Yes</UButton>
+                          <UButton block :loading="isMarkingLive" :disabled="isMarkingLive"
+                            @click="markAsLiveSubmission(close)">Yes</UButton>
                           <UButton block color="error" :disabled="isMarkingLive" @click="close">No</UButton>
                         </div>
                       </UPageCard>
@@ -632,28 +635,22 @@ async function submitOverrideAnalysis() {
                 </div>
               </div>
               <div v-if="isSubmittingLink && uploadProgress >= 0" class="w-full col-span-full space-y-2">
-                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Uploading video... {{ uploadProgress }}%</p>
+                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Uploading video... {{ uploadProgress }}%
+                </p>
                 <UProgress :value="uploadProgress" size="sm" class="w-full" />
               </div>
               <div class="w-full col-span-full">
-                <UButton
-                  block
-                  icon="i-lucide-send"
-                  size="lg"
-                  color="primary"
-                  variant="solid"
-                  :disabled="(!uploadedVideoUrl && !attachedLinkUrl) || isSubmittingLink"
-                  :loading="isSubmittingLink"
-                  class="w-full disabled:opacity-50 disabled:cursor-not-allowed"
-                  @click="submitVideoLink"
-                >
+                <UButton block icon="i-lucide-send" size="lg" color="primary" variant="solid"
+                  :disabled="(!uploadedVideoUrl && !attachedLinkUrl) || isSubmittingLink" :loading="isSubmittingLink"
+                  class="w-full disabled:opacity-50 disabled:cursor-not-allowed" @click="submitVideoLink">
                   Submit Video
                 </UButton>
               </div>
             </template>
 
             <div v-if="showAnswerRubricButton" class="w-full col-span-full">
-              <UButton block icon="i-lucide-list-checks" size="lg" color="primary" variant="solid" @click="openRubricDialog">
+              <UButton block icon="i-lucide-list-checks" size="lg" color="primary" variant="solid"
+                @click="openRubricDialog">
                 Answer rubric
               </UButton>
             </div>
@@ -663,7 +660,8 @@ async function submitOverrideAnalysis() {
               <UAccordion :items="[{ label: 'Rubric answers', slot: 'rubric-answers' }]">
                 <template #rubric-answers>
                   <div class="rounded-lg border border-default p-4 space-y-3">
-                    <div v-for="q in rubricQuestions" :key="getQuestionKey(q)" class="border-b border-default pb-3 last:border-0 last:pb-0">
+                    <div v-for="q in rubricQuestions" :key="getQuestionKey(q)"
+                      class="border-b border-default pb-3 last:border-0 last:pb-0">
                       <p class="font-medium text-gray-700 dark:text-gray-300">{{ q.questionText ?? '—' }}</p>
                       <p class="text-gray-600 dark:text-gray-400 mt-1">{{ getAnswerForQuestion(q) }}</p>
                     </div>
@@ -671,60 +669,46 @@ async function submitOverrideAnalysis() {
                 </template>
               </UAccordion>
 
+
               <!-- No analysis yet: show Generate Analysis only -->
-              <UButton
-                v-if="!hasAnalysis"
-                block
-                icon="i-lucide-sparkles"
-                size="lg"
-                color="primary"
-                variant="solid"
-                :loading="isGeneratingAnalysis"
-                :disabled="isGeneratingAnalysis"
-                @click="generateAnalysis"
-              >
-                Generate Analysis
-              </UButton>
+              <div v-if="!hasAnalysis">
+                <div class="flex justify-center w-full mb-4">No analysis yet</div>
+                <UButton block icon="i-lucide-sparkles" color="primary" variant="solid"
+                  :loading="isGeneratingAnalysis" :disabled="isGeneratingAnalysis" @click="generateAnalysis">
+                  Generate Analysis
+                </UButton>
+              </div>
 
               <!-- Analysis exists: show analysis, then Regenerate + Override -->
               <template v-else>
-                <div class="rounded-lg border border-default p-4">
-                  <p class="font-semibold text-lg mb-2">Analysis</p>
+                <UPageCard>
+                  <p class="font-semibold text-lg">Analysis</p>
                   <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ submission?.analysis }}</p>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                  <UButton
-                    icon="i-lucide-refresh-cw"
-                    size="lg"
-                    color="primary"
-                    variant="solid"
-                    :loading="isGeneratingAnalysis"
-                    :disabled="isGeneratingAnalysis"
-                    @click="generateAnalysis"
-                  >
-                    Regenerate Analysis
-                  </UButton>
-                  <UButton
-                    icon="i-lucide-edit"
-                    size="lg"
-                    color="neutral"
-                    variant="outline"
-                    @click="openOverrideDialog"
-                  >
-                    Override Analysis
-                  </UButton>
-                </div>
+
+                  <div class="flex flex-wrap gap-2">
+                    <UButton icon="i-lucide-refresh-cw" color="primary" variant="solid"
+                      :loading="isGeneratingAnalysis" :disabled="isGeneratingAnalysis" @click="generateAnalysis">
+                      Regenerate Analysis
+                    </UButton>
+                    <UButton icon="i-lucide-edit" color="neutral" variant="outline"
+                      @click="openOverrideDialog">
+                      Override Analysis
+                    </UButton>
+                  </div>
+                </UPageCard>
               </template>
             </div>
 
             <div v-if="isSubmittedState && !hasRubricAnswers" class="w-full col-span-full">
-              <UButton block icon="i-lucide-x-circle" size="lg" color="error" variant="outline" @click="openRejectDialog">
+              <UButton block icon="i-lucide-x-circle" size="lg" color="error" variant="outline"
+                @click="openRejectDialog">
                 Reject Submission
               </UButton>
             </div>
 
             <!-- Rejection reason when in draft state and remarks exist -->
-            <div v-if="showSubmissionActions && submission?.remarks && String(submission.remarks).trim()" class="w-full col-span-full p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+            <div v-if="showSubmissionActions && submission?.remarks && String(submission.remarks).trim()"
+              class="w-full col-span-full p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
               <p class="text-sm font-medium text-red-800 dark:text-red-200">Rejection Reason:</p>
               <p class="text-red-700 dark:text-red-300 mt-1">{{ submission.remarks }}</p>
             </div>
@@ -734,11 +718,14 @@ async function submitOverrideAnalysis() {
               <template #body>
                 <UContainer class="space-y-4">
                   <UFormGroup label="Analysis" name="overrideAnalysis">
-                    <UTextarea v-model="overrideAnalysisInput" placeholder="Enter analysis text..." :rows="10" class="w-full" />
+                    <UTextarea v-model="overrideAnalysisInput" placeholder="Enter analysis text..." :rows="10"
+                      class="w-full" />
                   </UFormGroup>
                   <div class="flex justify-end gap-2">
-                    <UButton variant="outline" :disabled="isOverridingAnalysis" @click="isOverrideDialogOpen = false">Cancel</UButton>
-                    <UButton color="primary" :loading="isOverridingAnalysis" :disabled="isOverridingAnalysis" @click="submitOverrideAnalysis">Submit</UButton>
+                    <UButton variant="outline" :disabled="isOverridingAnalysis" @click="isOverrideDialogOpen = false">
+                      Cancel</UButton>
+                    <UButton color="primary" :loading="isOverridingAnalysis" :disabled="isOverridingAnalysis"
+                      @click="submitOverrideAnalysis">Submit</UButton>
                   </div>
                 </UContainer>
               </template>
@@ -753,8 +740,10 @@ async function submitOverrideAnalysis() {
                     <UTextarea v-model="rejectReasonInput" placeholder="Enter rejection reason..." :rows="4" />
                   </UFormGroup>
                   <div class="flex justify-end gap-2">
-                    <UButton variant="outline" :disabled="isRejecting" @click="isRejectDialogOpen = false">Cancel</UButton>
-                    <UButton color="error" :loading="isRejecting" :disabled="isRejecting" @click="submitReject">Submit</UButton>
+                    <UButton variant="outline" :disabled="isRejecting" @click="isRejectDialogOpen = false">Cancel
+                    </UButton>
+                    <UButton color="error" :loading="isRejecting" :disabled="isRejecting" @click="submitReject">Submit
+                    </UButton>
                   </div>
                 </UContainer>
               </template>
@@ -803,59 +792,47 @@ async function submitOverrideAnalysis() {
                     <p class="font-medium">{{ q.questionText ?? '—' }}</p>
                     <!-- LIKERT SCALE -->
                     <div v-if="(q.questionType || '').toUpperCase() === 'LIKERT SCALE'" class="flex flex-wrap gap-2">
-                      <UButton
-                        v-for="choice in LIKERT_CHOICES"
-                        :key="choice"
-                        :variant="rubricFormAnswers[getQuestionKey(q)] === choice ? 'solid' : 'outline'"
-                        size="sm"
-                        @click="setRubricAnswer(getQuestionKey(q), choice)"
-                      >
+                      <UButton v-for="choice in LIKERT_CHOICES" :key="choice"
+                        :variant="rubricFormAnswers[getQuestionKey(q)] === choice ? 'solid' : 'outline'" size="sm"
+                        @click="setRubricAnswer(getQuestionKey(q), choice)">
                         {{ choice }}
                       </UButton>
                     </div>
                     <!-- MULTIPLE CHOICE -->
-                    <div v-else-if="(q.questionType || '').toUpperCase() === 'MULTIPLE CHOICE'" class="flex flex-wrap gap-2">
-                      <UButton
-                        v-for="choice in (q.choices || [])"
-                        :key="choice"
-                        :variant="rubricFormAnswers[getQuestionKey(q)] === choice ? 'solid' : 'outline'"
-                        size="sm"
-                        @click="setRubricAnswer(getQuestionKey(q), choice)"
-                      >
+                    <div v-else-if="(q.questionType || '').toUpperCase() === 'MULTIPLE CHOICE'"
+                      class="flex flex-wrap gap-2">
+                      <UButton v-for="choice in (q.choices || [])" :key="choice"
+                        :variant="rubricFormAnswers[getQuestionKey(q)] === choice ? 'solid' : 'outline'" size="sm"
+                        @click="setRubricAnswer(getQuestionKey(q), choice)">
                         {{ choice }}
                       </UButton>
                     </div>
                     <!-- YES/NO -->
                     <div v-else-if="(q.questionType || '').toUpperCase() === 'YES/NO'" class="flex gap-2">
-                      <UButton
-                        :variant="rubricFormAnswers[getQuestionKey(q)] === 'YES' ? 'solid' : 'outline'"
-                        @click="setRubricAnswer(getQuestionKey(q), 'YES')"
-                      >
+                      <UButton :variant="rubricFormAnswers[getQuestionKey(q)] === 'YES' ? 'solid' : 'outline'"
+                        @click="setRubricAnswer(getQuestionKey(q), 'YES')">
                         YES
                       </UButton>
-                      <UButton
-                        :variant="rubricFormAnswers[getQuestionKey(q)] === 'NO' ? 'solid' : 'outline'"
-                        @click="setRubricAnswer(getQuestionKey(q), 'NO')"
-                      >
+                      <UButton :variant="rubricFormAnswers[getQuestionKey(q)] === 'NO' ? 'solid' : 'outline'"
+                        @click="setRubricAnswer(getQuestionKey(q), 'NO')">
                         NO
                       </UButton>
                     </div>
                     <!-- ENUMERATION -->
                     <UFormGroup v-else-if="(q.questionType || '').toUpperCase() === 'ENUMERATION'" :label="''">
-                      <UInput
-                        :model-value="rubricFormAnswers[getQuestionKey(q)]"
-                        placeholder="10–100 characters"
-                        minlength="10"
-                        maxlength="100"
-                        @update:model-value="(v: string) => setRubricAnswer(getQuestionKey(q), v ?? '')"
-                      />
+                      <UInput :model-value="rubricFormAnswers[getQuestionKey(q)]" placeholder="10–100 characters"
+                        minlength="10" maxlength="100"
+                        @update:model-value="(v: string) => setRubricAnswer(getQuestionKey(q), v ?? '')" />
                       <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">10–100 characters</p>
                     </UFormGroup>
                     <p v-else class="text-sm text-gray-500">Unknown question type: {{ q.questionType }}</p>
                   </div>
                   <div class="flex justify-end gap-2 pt-4 border-t border-default">
-                    <UButton variant="outline" :disabled="isSubmittingRubric" @click="isRubricDialogOpen = false">Cancel</UButton>
-                    <UButton color="primary" :loading="isSubmittingRubric" :disabled="isSubmittingRubric || !allRubricQuestionsAnswered" @click="submitRubricAnswers">Submit</UButton>
+                    <UButton variant="outline" :disabled="isSubmittingRubric" @click="isRubricDialogOpen = false">Cancel
+                    </UButton>
+                    <UButton color="primary" :loading="isSubmittingRubric"
+                      :disabled="isSubmittingRubric || !allRubricQuestionsAnswered" @click="submitRubricAnswers">Submit
+                    </UButton>
                   </div>
                 </UContainer>
               </template>
@@ -866,7 +843,7 @@ async function submitOverrideAnalysis() {
       </UPageCard>
 
     </template>
-    
+
     <UPageCard v-else class="flex items-center justify-center h-64">
       <p>Could not load submission details.</p>
     </UPageCard>
