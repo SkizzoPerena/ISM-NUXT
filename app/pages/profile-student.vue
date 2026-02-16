@@ -531,6 +531,21 @@ const ratingIcon = computed(() => {
   }
 })
 
+// Student Rating
+const ratingDescription = computed(() => {
+  if (!student.value?.rating) return ''
+  switch (student.value.rating.toLowerCase()) {
+    case 'growing':
+      return 'Middle level - steady progress, improving daily'
+    case 'emerging':
+      return 'Beginner level - building foundations, improving daily'    
+    case 'thriving':
+      return 'Top level - strong skills, confindent playing'
+    default:
+      return ''
+  }
+})
+
 function getRatingColor(rating?: string) {
   if (!rating) return 'primary'
   switch (rating.toLowerCase()) {
@@ -1401,9 +1416,9 @@ async function onDeleteStudent() {
 
             <p class="font-semibold text-lg">Student Summary</p>
             <div v-if="student?.rating">
-              <p class="text-sm font-medium text-gray-600 dark:text-gray-300">
-                Overall Rating: <UBadge :icon="ratingIcon":color="getRatingColor(student.rating)" size="lg" variant="subtle">{{ student.rating }}</UBadge>
-              </p>
+              <p class=" font-medium">
+                <UBadge :icon="ratingIcon":color="getRatingColor(student.rating)" size="xl"  variant="subtle">{{ student.rating }}: {{ ratingDescription }}</UBadge> 
+              </p> 
             </div>
 
             <p v-if="student?.analysis" class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ student?.analysis }}</p>
