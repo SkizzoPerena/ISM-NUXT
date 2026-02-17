@@ -107,7 +107,7 @@ const password = ref('')
           <UButton type="submit" block @click="setDestination('/')">
             Sign In as Admin
           </UButton>
-          <UButton type="submit" block color="neutral" @click="setDestination('/teacher-interface/t-index')">
+          <UButton type="submit" block color="secondary" @click="setDestination('/teacher-interface/t-index')">
             Sign In as Teacher
           </UButton>
         </div>

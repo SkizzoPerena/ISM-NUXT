@@ -233,8 +233,8 @@ const open = ref(false)
     <!-- Sidebar -->
     <UDashboardSidebar v-model:collapsed="collapsed" collapsible :ui="{ footer: 'border-t border-default' }">
       <template #header="{ collapsed }">
-        <div v-if="!collapsed" class="mx-auto"><UBadge class="py-1" icon="i-lucide-school" label="Teacher Interface" size="xl" variant="subtle"/></div>
-        <UIcon v-else name="i-lucide-brain" class="size-5 text-primary mx-auto" />
+        <div v-if="!collapsed" class="mx-auto"><UBadge class="py-1" icon="i-lucide-school" label="Teacher Interface" size="xl" variant="subtle" color="secondary"/></div>
+        <UIcon v-else name="i-lucide-school" class="size-5 text-primary mx-auto" color="secondary"/>
       </template>
 
       <template #default="{ collapsed }">
