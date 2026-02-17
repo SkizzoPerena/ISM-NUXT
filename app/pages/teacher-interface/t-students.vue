@@ -9,7 +9,7 @@ definePageMeta({
 
 const { data, status } = await useAsyncData<Student[]>('students',
   async () => { // Make this function async to await nested fetches
-    const studentListResponse = await $fetch<any>('https://noteworthy-z9k0.onrender.com/api/teacher/student', {
+    const studentListResponse = await $fetch<any>('https://noteworthy-z9k0.onrender.com/api/teacher/students', {
       headers: {
         Authorization: `${useAuthToken().value}`
       },
@@ -18,8 +18,16 @@ const { data, status } = await useAsyncData<Student[]>('students',
       }
     });
 
-    const studentData = studentListResponse?.data || studentListResponse?.students || studentListResponse
-    const rows = Array.isArray(studentData) ? studentData : []
+    // The API returns students grouped by section under the `organizedStudents` key.
+    // We need to flatten this structure to create a single list of students for the table.
+    const organizedStudentData = studentListResponse?.organizedStudents ?? []
+    const rows = organizedStudentData.flatMap(
+      (group: any) => group.students?.map((student: any) => ({
+        ...student,
+        // Attach the section object to each student for display in the table.
+        assignedSections: group.section ? [group.section] : [],
+      })) ?? []
+    )
 
     // For each student, fetch their assigned instruments
     const studentsWithEnrichedData = await Promise.all(rows.map(async (student: any) => {

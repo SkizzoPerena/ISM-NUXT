@@ -28,7 +28,7 @@ const { data, status } = await useAsyncData('sections',
         _id: section._id,
         name: section.name,
         assignedStudents: section.students,
-        assignedTeachers: section.teachers,     }))
+        }))
     },
     lazy: false,
   }
@@ -38,7 +38,7 @@ type Section = {
   _id: string
   name: string
   assignedStudents: any[]
-  assignedTeachers: Teacher[]
+  
 }
 
 const NuxtLink = resolveComponent('NuxtLink')
@@ -54,22 +54,12 @@ const columns: TableColumn<Section>[] = [
   {
     accessorKey: 'name',
     header: 'Section Name',  
-    cell: ({ row }) => h(NuxtLink, { to: `/profile-section?id=${row.original._id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('name') })
+    cell: ({ row }) => h(NuxtLink, { to: `/teacher-interface/t-profile-section?id=${row.original._id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('name') })
   },
   {
     accessorKey: '_id',
     header: 'Section #',
     cell: ({ row }) => `#${row.getValue('_id')}`
-  },
-    {
-    accessorKey: 'assignedTeachers',
-    header: 'Teachers',
-    cell: ({ row }) => {
-  const teachers = row.getValue('assignedTeachers') as Teacher[]
-  
-  if (!teachers || !teachers.length) return ''
-  return teachers.map(teacher => `${teacher.firstName} ${teacher.lastName}`).join(', ')
-  }
   },
     {
     accessorKey: 'assignedStudents',
