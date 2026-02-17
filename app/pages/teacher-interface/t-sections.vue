@@ -8,7 +8,7 @@ definePageMeta({
 })
 
 const { data, status } = await useAsyncData('sections',
-  () => $fetch<Section[]>('https://noteworthy-z9k0.onrender.com/api/admin/sections', {
+  () => $fetch<Section[]>('https://noteworthy-z9k0.onrender.com/api/teacher/sections', {
     headers: {
       Authorization: `${useAuthToken().value}`
     },

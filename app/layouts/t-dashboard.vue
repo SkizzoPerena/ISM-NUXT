@@ -7,17 +7,17 @@ const ITEMS_PER_PAGE = 10
 const items: NavigationMenuItem[][] = [[{
   label: 'Home',
   icon: 'i-lucide-house',
-  to: '/',
+  to: '../teacher-interface/t-index',
 }, 
 {
   label: 'Sections',
   icon: 'i-lucide-book-user',
-  to: '/sections',
+  to: '../teacher-interface/t-sections',
 },
 {
   label: 'Students',
   icon: 'i-lucide-users',
-  to: '/students',
+  to: '../teacher-interface/t-students',
 
 }, 
 
@@ -27,13 +27,13 @@ const items: NavigationMenuItem[][] = [[{
   defaultOpen: true,
   children: [{
     label: 'Assessments',
-    to: '/assessments'
+    to: '../teacher-interface/t-assessments'
   }, {
     label: 'Journals',
-    to: '/journals'
+    to: '../teacher-interface/t-journals'
   },{
     label: 'Rubrics',
-    to: '/rubrics'
+    to: '../teacher-interface/t-rubrics'
   },
 ]
 },
@@ -96,7 +96,7 @@ async function signOut() {
 }
 const toast = useToast()
 
-type AdminAccount = {
+type TeacherAccount = {
   _id: string,
   email: string,
   firstName: string,
@@ -105,18 +105,12 @@ type AdminAccount = {
 }
 
 // Create a shared state for the user data that will be accessible across all pages using this layout.
-const user = useState<AdminAccount | null>('user', () => null)
+const user = useState<TeacherAccount | null>('user', () => null)
 
-const { data } = useFetch<{ admin: AdminAccount }>('https://noteworthy-z9k0.onrender.com/api/admin/account', {
+const { data } = useFetch<{ teacher: TeacherAccount }>(`${API_BASE}/api/teacher/account`, {
   headers: {
     // Attach the authentication token to the request
     Authorization: `${useAuthToken().value}`
-  },
-  onResponse({ response }) {
-    // This runs on a successful response
-    if (response.ok) {
-      toast.add({ title: 'API response success!', color: 'success' })
-    }
   },
   onResponseError({ response }) {
     // This runs on an error response. The error message is typically in response._data.message
@@ -130,8 +124,8 @@ const { data } = useFetch<{ admin: AdminAccount }>('https://noteworthy-z9k0.onre
 // The `watch` with `immediate: true` ensures this runs on both server and client,
 // and handles the lazy-loaded data when it arrives.
 watch(data, (newData) => {
-  if (newData?.admin) {
-    user.value = newData.admin
+  if (newData?.teacher) {
+    user.value = newData.teacher
   }
 }, { immediate: true })
 
@@ -151,7 +145,7 @@ const userdropdown = computed(() => [
     {
       label: 'Profile',
       icon: 'i-lucide-user',
-      to: '/profile-admin'
+      to: '../teacher-interface/t-profile-teacher'
     },
 
     {
@@ -177,6 +171,9 @@ defineShortcuts({
   c: () => collapsed.value = !collapsed.value
 })
 
+// Get the teacher's ID from the shared user state. This will be used to fetch activity logs.
+const teacherId = computed(() => user.value?._id)
+
 // Activity logs
 type ActivityLog = {
   _id?: string
@@ -188,16 +185,19 @@ const logsPage = ref(1)
 const totalLogs = ref(0)
 
 const { data: logsResponse } = await useAsyncData<{ logs: ActivityLog[]; total?: number }>(
-  `admin-logs-${logsPage.value}`,
-  () =>
-    $fetch(`${API_BASE}/api/admin/logs`, {
+  `teacher-logs-${teacherId.value}-${logsPage.value}`,
+  () => {
+    // Only fetch logs if the teacher ID is available.
+    if (!teacherId.value) return Promise.resolve({ logs: [], total: 0 })
+    return $fetch(`${API_BASE}/api/teacher/logs/${teacherId.value}`, {
       query: { page: logsPage.value, limit: ITEMS_PER_PAGE },
       headers: {
         Authorization: `${useAuthToken().value}`,
       },
-    }),
+    })
+  },
   {
-    watch: [logsPage],
+    watch: [logsPage, teacherId],
     transform: (response: any) => {
       const logs = response?.logs ?? response?.data ?? response
       const list = Array.isArray(logs) ? logs : []
