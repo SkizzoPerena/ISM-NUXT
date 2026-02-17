@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({
-  layout: 'dashboard',
+  layout: 't-dashboard',
 })
 
 
@@ -24,12 +24,11 @@ const user = useState<User | null>('user')
       <UPageCard class="lg:col-span-3 h-40"><UPageHeader :title="`Welcome back, ${user?.firstName || ''}!`" style="border-bottom: 0; margin-top: auto; padding-bottom: 0;"/></UPageCard>
 
       <UPageCard class="" title="Sections" icon="i-lucide-book-user" orientation="horizontal">
-      <UButton to="/sections" block>All Sections</UButton>
+      <UButton to="../teacher-interface/t-sections" block>All Sections</UButton>
       </UPageCard>
       <UPageCard title="Users" icon="i-lucide-users" orientation="horizontal">
-        <div><UButton to="/students" block >Teachers</UButton>
-        <UButton to="/students" block class="mt-4">Students</UButton>
-        <UButton to="/students" block class="mt-4">Guardians</UButton>
+        <div>
+        <UButton to="/students" block class="mt-4">All Students</UButton>
         </div>
       </UPageCard>
 
@@ -37,7 +36,6 @@ const user = useState<User | null>('user')
         <div><UButton to="/assessments" block >Assessments</UButton>
         <UButton to="/journals" block class="mt-4">Journals</UButton>
         <UButton to="/rubrics" block class="mt-4">Rubrics</UButton>
-        <UButton to="/instruments" block class="mt-4">Instruments</UButton>
         </div>
       </UPageCard>
     </UPageGrid>

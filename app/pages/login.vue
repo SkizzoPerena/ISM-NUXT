@@ -1,30 +1,20 @@
 <script setup lang="ts">
 import * as z from 'zod'
-import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui'
+import type { FormSubmitEvent } from '@nuxt/ui'
 
 const toast = useToast()
 
-const fields: AuthFormField[] = [{
-  name: 'email',
-  type: 'email',
-  label: 'Email',
-  placeholder: 'Enter your email',
-  defaultValue: 'noteworthyadmin@gmail.com',
-  required: true
-}, {
-  name: 'password',
-  label: 'Password',
-  type: 'password',
-  placeholder: 'Enter your password',
-  defaultValue: 'admin1234',
-  required: true
-}, {
-  name: 'remember',
-  label: 'Remember me',
-  type: 'checkbox',
-  defaultValue: false,
-}]
+const state = reactive({
+  email: 'noteworthyadmin@gmail.com',
+  password: 'admin1234',
+  remember: false
+})
 
+const destination = ref('/')
+
+function setDestination(path: string) {
+  destination.value = path
+}
 
 const schema = z.object({
   email: z.email('Invalid email'),
@@ -60,8 +50,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
     toast.add({ title: 'Login successful!', color: 'success' })
 
-    // Redirect to the home page on successful login
-    await navigateTo('/')
+    // Redirect to the destination page on successful login
+    await navigateTo(destination.value)
   } catch (error: any) {
     const errorMessage = error.data?.message || 'An unknown error occurred.'
     toast.add({ title: 'Login Failed', description: errorMessage, color: 'error' })
@@ -72,25 +62,45 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
 <template>
   <UMain class="flex flex-col items-center justify-center">
-    <UPageCard class="w-full max-w-sm h-125" >
-      <UAuthForm
-        :schema="schema"
-        :fields="fields"
-        title="Welcome back!"
-        icon="i-lucide-lock"
-        @submit="onSubmit" class="max-w-md"
-      >
-        <template #description>
-          <div class="text-default">Sign in as an admin to continue</div>
-          <div class="text-sm pt-2">Not an admin? <ULink to="/t-login" class="text-primary font-medium">Sign in as a teacher instead</Ulink>.</div>
-        </template>
-        <template #password-hint>
-          <ULink to="#" class="text-primary font-medium" tabindex="-1">Forgot password?</ULink>
-        </template> 
-        <template #footer>
-          By signing in, you agree to our <ULink to="#" class="text-primary font-medium">Terms of Service</ULink>.
-        </template>
-      </UAuthForm>
+    <UPageCard class="w-full max-w-sm">
+
+        <div class="text-center space-y-2">
+          <UIcon name="i-lucide-lock" class="text-4xl" />
+          <h2 class="text-2xl font-bold">Welcome back!</h2>
+          <p class="text-gray-500 dark:text-gray-400">Sign in as an admin to continue</p>
+        </div>
+
+
+      <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
+        <UFormField label="Email" name="email" required>
+          <UInput v-model="state.email" placeholder="Enter your email" type="email" class="w-full"/>
+        </UFormField>
+
+        <UFormField label="Password" name="password" required>
+          <template #hint>
+            <ULink to="#" class="text-primary font-medium" tabindex="-1">Forgot password?</ULink>
+          </template>
+          <UInput v-model="state.password" placeholder="Enter your password" type="password" class="w-full"/>
+        </UFormField>
+
+        <UFormField name="remember">
+          <UCheckbox v-model="state.remember" label="Remember me" />
+        </UFormField>
+
+        <div class="flex flex-col gap-2 pt-2">
+          <UButton type="submit" block @click="setDestination('/')">
+            Sign In as Admin
+          </UButton>
+          <UButton type="submit" block color="neutral" @click="setDestination('/teacher-interface/t-index')">
+            Sign In as Teacher
+          </UButton>
+        </div>
+      </UForm>
+
+
+        <p class="text-sm text-center text-gray-500 dark:text-gray-400">
+          By signing in, you agree to our <ULink to="#" class="text-primary font-medium">Terms of Service</ULink>.</p>
+
     </UPageCard>
   </UMain>
 </template>

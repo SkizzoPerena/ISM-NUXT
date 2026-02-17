@@ -4,7 +4,7 @@ import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 
 definePageMeta({
-  layout: 'dashboard',
+  layout: 't-dashboard',
 })
 
 const { data, status } = await useAsyncData('sections',
@@ -41,7 +41,6 @@ type Section = {
   assignedTeachers: Teacher[]
 }
 
-const UAvatar = resolveComponent('UAvatar')
 const NuxtLink = resolveComponent('NuxtLink')
 
 type Teacher = {
@@ -87,48 +86,7 @@ const globalFilter = ref('')
 
 // END TABLE FILTER SCRIPT
 
-// FORM SCRIPT 
 
-const isOpen = ref(false)
-
-const state = reactive({
-  sectionName: undefined
-})
-
-type Schema = typeof state
-
-function validate(state: Partial<Schema>): FormError[] {
-  const errors = []
-  if (!state.sectionName) errors.push({ name: 'sectionName', message: 'Required' })
-  return errors
-}
-
-const toast = useToast()
-async function onSubmit(event: FormSubmitEvent<Schema>) {
-  try {
-    await $fetch('https://noteworthy-z9k0.onrender.com/api/admin/sections', {
-      method: 'POST',
-      headers: {
-        Authorization: `${useAuthToken().value}`
-      },
-      body: {
-        name: state.sectionName
-      }
-    })
-    
-    toast.add({ title: 'Success', description: 'Section created successfully.', color: 'success' })
-    isOpen.value = false
-    state.sectionName = undefined
-    
-    // Refresh the sections list
-    await refreshNuxtData('sections')
-  } catch (error) {
-    console.error('Error creating section:', error)
-    toast.add({ title: 'Error', description: 'Failed to create section.', color: 'error' })
-  }
-}
-
-// END FORM SCRIPT
 </script>
 
 <template>
@@ -142,33 +100,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             placeholder="Search sections..."
             />
 
-          <UButton label="Add New Section" @click="isOpen = true" />
 
-          <UModal v-model:open="isOpen" :dismissible="false">
-            <template #header>
-              <div class="flex items-center justify-between w-full">
-                <h3 class="text-lg font-semibold">Add New Section</h3>
-                <UButton icon="i-lucide-x" variant="ghost" @click="isOpen = false" />
-              </div>
-            </template>
-
-            <template #body>
-              <UForm :validate="validate" :state="state" class="space-y-4" @submit="onSubmit">
-                <UFormField label="Section Name" name="sectionName" required block>
-                  <UInput v-model="state.sectionName" placeholder="Enter section name" class="w-full" />
-                </UFormField>
-
-                <div class="flex gap-2 justify-end">
-                  <UButton type="button" variant="outline" @click="isOpen = false">
-                    Cancel
-                  </UButton>
-                  <UButton type="submit">
-                    Create Section
-                  </UButton>
-                </div>
-              </UForm>
-            </template>
-          </UModal>
 
         </div>
       </div>

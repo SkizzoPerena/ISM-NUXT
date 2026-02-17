@@ -246,7 +246,7 @@ const open = ref(false)
     <!-- Sidebar -->
     <UDashboardSidebar v-model:collapsed="collapsed" collapsible :ui="{ footer: 'border-t border-default' }">
       <template #header="{ collapsed }">
-        <UIcon v-if="!collapsed" class="size-5 text-primary mx-auto" name="i-lucide-brain"/>
+        <div v-if="!collapsed" class="mx-auto"><UBadge class="py-1" icon="i-lucide-shield-user" label="Admin Interface" size="xl" variant="subtle"/></div>
         <UIcon v-else name="i-lucide-brain" class="size-5 text-primary mx-auto" />
       </template>
 
