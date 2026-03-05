@@ -27,7 +27,7 @@ const { data, status } = await useAsyncData('sections',
       return rows.map((section: any) => ({
         _id: section._id,
         name: section.name,
-        assignedStudents: section.students,
+        studentCount: Array.isArray(section.students) ? section.students.length : 0,
         }))
     },
     lazy: false,
@@ -37,18 +37,10 @@ const { data, status } = await useAsyncData('sections',
 type Section = {
   _id: string
   name: string
-  assignedStudents: any[]
-  
+  studentCount: number
 }
 
 const NuxtLink = resolveComponent('NuxtLink')
-
-type Teacher = {
-  _id: string
-  firstName: string
-  lastName: string
-  // ... other fields
-}
 
 const columns: TableColumn<Section>[] = [
   {
@@ -62,9 +54,9 @@ const columns: TableColumn<Section>[] = [
     cell: ({ row }) => `#${row.getValue('_id')}`
   },
     {
-    accessorKey: 'assignedStudents',
+    accessorKey: 'studentCount',
     header: 'Students',
-    cell: ({ row }) => (row.getValue('assignedStudents') as any[])?.length
+    cell: ({ row }) => row.getValue('studentCount')
   },
 ]
 

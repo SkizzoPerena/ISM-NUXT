@@ -28,7 +28,7 @@ const user = useState<User | null>('user')
       </UPageCard>
       <UPageCard title="Users" icon="i-lucide-users" orientation="horizontal">
         <div>
-        <UButton to="/students" block class="mt-4">All Students</UButton>
+        <UButton to="../teacher-interface/t-students" block class="mt-4">All Students</UButton>
         </div>
       </UPageCard>
 

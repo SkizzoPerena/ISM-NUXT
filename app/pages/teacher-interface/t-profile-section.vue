@@ -69,7 +69,6 @@ type GroupSubmission = {
 type SectionDetail = {
   _id: string
   name: string
-  students: Student[]
   teachers: Teacher[]
 }
 
@@ -93,6 +92,33 @@ const { data: section, status, refresh: refreshSection } = await useAsyncData<Se
       return response.data || response.section || response
     },
     // This ensures the data re-fetches if you navigate between sections without a full page reload
+    watch: [sectionId]
+  }
+)
+
+// Fetch students for the section
+const { data: sectionStudents, status: studentsStatus, refresh: refreshStudents } = await useAsyncData<Student[]>(
+  `teacher-section-students-${sectionId.value}`,
+  () => $fetch(`${API_BASE}/api/teacher/students/section/${sectionId.value}`, {
+    headers: {
+      Authorization: `${useAuthToken().value}`
+    },
+    onResponse({ response }) {
+      console.log('Students API Response:', response._data)
+    }
+  }),
+  {
+    transform: (response: any): Student[] => {
+      const studentData = response.data || response.students || response
+      return Array.isArray(studentData) ? studentData.map((s: any) => ({
+        _id: s._id,
+        firstName: s.firstName,
+        lastName: s.lastName,
+        email: s.email,
+        gender: s.gender,
+        profileImageURL: s.profileImageURL,
+      })) : []
+    },
     watch: [sectionId]
   }
 )
@@ -281,9 +307,9 @@ const items = [
 // PEOPLE TAB SCRIPT
 
 const studentData = computed(() => {
-  if (!section.value?.students) return []
+  if (!sectionStudents.value) return []
   // Map the fetched student data to the format the table expects.
-  return section.value.students.map(s => ({
+  return sectionStudents.value.map(s => ({
     avatar: s.profileImageURL,
     name: `${s.firstName} ${s.lastName}`,
     id: s._id,
@@ -446,7 +472,7 @@ async function confirmAddStudent() {
     toast.add({ title: 'Success', description: 'Student added to section.', color: 'success' })
     isAddStudentOpen.value = false
     addStudentSelectedId.value = undefined
-    await refreshSection()
+    await refreshStudents()
   } catch (error) {
     console.error('Error adding student to section', error)
     toast.add({ title: 'Error', description: 'Failed to add student to section.', color: 'error' })
@@ -480,7 +506,7 @@ async function confirmUnassignStudent() {
     })
     toast.add({ title: 'Success', description: 'Student removed from section.', color: 'success' })
     closeUnassignStudentConfirm()
-    await refreshSection()
+    await refreshStudents()
   } catch (error) {
     console.error('Error unassigning student from section', error)
     toast.add({ title: 'Error', description: 'Failed to remove student from section.', color: 'error' })
@@ -971,55 +997,7 @@ const journalcolumns: TableColumn<Journal>[] = [
       <div class="flex items-center justify-between w-full"
         style="border-bottom: 0; margin-top: auto; padding-bottom: 0;">
         <UPageHeader :title="section.name" style="border-bottom: 0; padding-bottom: 0;" />
-        <div class="flex items-center gap-1">
-          <UButton icon="i-lucide-pencil" variant="ghost" aria-label="Edit section" @click="openEditModal" />
-          <UButton icon="i-lucide-trash-2" color="error" variant="ghost" aria-label="Delete section" @click="openDeleteSectionModal" />
-        </div>
       </div>
-
-      <UModal v-model:open="isDeleteSectionOpen" :dismissible="!isDeleteSectionSubmitting">
-        <template #header>
-          <div class="flex items-center justify-between w-full">
-            <h3 class="text-lg font-semibold">Delete Section</h3>
-            <UButton icon="i-lucide-x" variant="ghost" :disabled="isDeleteSectionSubmitting" @click="isDeleteSectionOpen = false" />
-          </div>
-        </template>
-        <template #body>
-          <p class="text-default mb-4">Are you sure you want to archive this section? This action cannot be undone.</p>
-          <div class="flex gap-2 justify-end">
-            <UButton type="button" variant="outline" :disabled="isDeleteSectionSubmitting" @click="isDeleteSectionOpen = false">
-              Cancel
-            </UButton>
-            <UButton color="error" :loading="isDeleteSectionSubmitting" @click="confirmDeleteSection">
-              Delete Section
-            </UButton>
-          </div>
-        </template>
-      </UModal>
-
-      <UModal v-model:open="isEditOpen" :dismissible="false">
-        <template #header>
-          <div class="flex items-center justify-between w-full">
-            <h3 class="text-lg font-semibold">Edit Section</h3>
-            <UButton icon="i-lucide-x" variant="ghost" @click="isEditOpen = false" />
-          </div>
-        </template>
-        <template #body>
-          <UForm :validate="validateEdit" :state="editState" class="space-y-4" @submit="onSubmitEdit">
-            <UFormField label="Section Name" name="sectionName" required block>
-              <UInput v-model="editState.sectionName" placeholder="Enter section name" class="w-full" />
-            </UFormField>
-            <div class="flex gap-2 justify-end">
-              <UButton type="button" variant="outline" @click="isEditOpen = false">
-                Cancel
-              </UButton>
-              <UButton type="submit">
-                Update Section
-              </UButton>
-            </div>
-          </UForm>
-        </template>
-      </UModal>
 
       <!-- Add Student to Section Modal -->
       <UModal v-model:open="isAddStudentOpen" :dismissible="!isAddStudentSubmitting">
@@ -1289,7 +1267,7 @@ const journalcolumns: TableColumn<Journal>[] = [
                 <UButton icon="i-lucide-plus" variant="ghost" color="success" square aria-label="Add student to section"
                   @click="openAddStudentModal" />
               </div>
-              <UTable sticky ref="table" :data="studentData" :columns="columns" :loading="status === 'pending'" />
+              <UTable sticky ref="table" :data="studentData" :columns="columns" :loading="studentsStatus === 'pending'" />
             </UContainer>
 
         </template>
