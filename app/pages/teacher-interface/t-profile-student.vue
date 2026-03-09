@@ -113,6 +113,43 @@ const { data: student, status, refresh: refreshStudent } = await useAsyncData<St
   }
 )
 
+// Fallback source of section assignments, based on the grouped students list
+type StudentFromList = {
+  _id: string
+  assignedSections: SectionInfo[]
+}
+
+const { data: studentFromList } = await useAsyncData<StudentFromList | null>(
+  `teacher-student-from-list-${studentId.value}`,
+  async () => {
+    if (!studentId.value) return null
+    const listResponse: any = await $fetch(`${API_BASE}/api/teacher/students`, {
+      headers: { Authorization: `${useAuthToken().value}` },
+    })
+    const organized = listResponse?.organizedStudents ?? []
+    for (const group of organized as any[]) {
+      const students = Array.isArray(group?.students) ? group.students : []
+      const found = students.find((s: any) => s?._id === studentId.value)
+      if (found) {
+        const section = group.section
+        const assignedSections: SectionInfo[] = section
+          ? [{ _id: section._id, name: section.name }]
+          : []
+        return { _id: found._id, assignedSections }
+      }
+    }
+    return null
+  },
+  { watch: [studentId] }
+)
+
+// Prefer sections from the direct student detail; fall back to grouped list
+const effectiveAssignedSections = computed<SectionInfo[]>(() => {
+  const direct = student.value?.assignedSections ?? []
+  if (direct.length > 0) return direct
+  return studentFromList.value?.assignedSections ?? []
+})
+
 // Fetch all sections (same endpoint as sections.vue) for Assign Section dropdown
 type SectionOption = { _id: string; name: string }
 const { data: allSections } = await useAsyncData<SectionOption[]>(
@@ -444,16 +481,17 @@ function closeUnassignSectionConfirm() {
 
 async function confirmUnassignSection() {
   if (!studentId.value || !sectionToUnassign.value || isUnassignSectionSubmitting.value) return
+  const sectionId = sectionToUnassign.value._id
   isUnassignSectionSubmitting.value = true
   try {
-    await $fetch(`${API_BASE}/api/teacher/sections/${sectionToUnassign.value._id}/unassign-student/${studentId.value}`, {
+    await $fetch(`${API_BASE}/api/teacher/sections/${sectionId}/unassign-student/${studentId.value}`, {
       method: 'PATCH',
       headers: { Authorization: `${useAuthToken().value}` }
     })
     toast.add({ title: 'Success', description: 'Section removed from student.', color: 'success' })
     isUnassignSectionOpen.value = false
     sectionToUnassign.value = null
-    await refreshStudent()
+    await navigateTo(`/teacher-interface/t-profile-section?id=${sectionId}`)
   } catch (error) {
     console.error('Error unassigning section', error)
     toast.add({ title: 'Error', description: 'Failed to remove section.', color: 'error' })
@@ -1267,11 +1305,11 @@ async function onDeleteStudent() {
           <template #assignments="{ item }">
             <UPageGrid class="mt-5">
               <div>
-                <UContainer v-if="student.assignedSections && student.assignedSections.length > 0">
+                <UContainer v-if="effectiveAssignedSections.length > 0">
                   <h3 class="text-lg font-semibold">Assigned Sections</h3>
 
                   <div class="space-y-2 mt-4">
-                    <div v-for="section in student.assignedSections" :key="section._id" class="flex items-center gap-2 w-full">
+                    <div v-for="section in effectiveAssignedSections" :key="section._id" class="flex items-center gap-2 w-full">
                       <NuxtLink :to="`../teacher-interface/t-profile-section?id=${section._id}`" class="text-primary font-medium hover:underline">
                         {{ section.name }}
                       </NuxtLink>
