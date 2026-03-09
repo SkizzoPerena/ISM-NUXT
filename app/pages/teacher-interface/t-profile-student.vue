@@ -862,7 +862,7 @@ const journalEntryColumns: TableColumn<JournalEntry>[] = [
       const title = row.original.journalSection?.journalId?.title ?? '—'
       const entryId = row.original._id
       if (!entryId) return title
-      return h(NuxtLink, { to: `/journal-entry?id=${entryId}`, class: 'text-primary font-medium hover:underline' }, { default: () => title })
+      return h(NuxtLink, { to: `/teacher-interface/t-journal-entry?id=${entryId}`, class: 'text-primary font-medium hover:underline' }, { default: () => title })
     }
   },
   {
@@ -881,7 +881,7 @@ const assessmentcolumns: TableColumn<Assessment>[] = [
   {
     accessorKey: 'title',
     header: 'Title',
-    cell: ({ row }) => h(NuxtLink, { to: `/details-assessment?id=${row.original._id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('title') })
+    cell: ({ row }) => h(NuxtLink, { to: `/teacher-interface/t-details-assessment?id=${row.original._id}`, class: 'text-primary font-medium hover:underline' }, { default: () => row.getValue('title') })
   },
   {
     accessorKey: 'createdAt',
@@ -940,7 +940,7 @@ const specialSubmissionColumns: TableColumn<SpecialSubmission>[] = [
       const title = row.original.assessmentStudent?.assessmentId?.title ?? '—'
       const submissionId = row.original._id
       if (!submissionId) return title
-      return h(NuxtLink, { to: `/details-submissions-special?id=${submissionId}`, class: 'text-primary font-medium hover:underline' }, { default: () => title })
+      return h(NuxtLink, { to: `/teacher-interface/t-details-submissions-special?id=${submissionId}`, class: 'text-primary font-medium hover:underline' }, { default: () => title })
     }
   },
   {
@@ -973,7 +973,7 @@ const submittedSpecialSubmissionColumns: TableColumn<SpecialSubmission>[] = [
       const title = row.original.assessmentStudent?.assessmentId?.title ?? '—'
       const submissionId = row.original._id
       if (!submissionId) return title
-      return h(NuxtLink, { to: `/details-submissions-special?id=${submissionId}`, class: 'text-primary font-medium hover:underline' }, { default: () => title })
+      return h(NuxtLink, { to: `/teacher-interface/t-details-submissions-special?id=${submissionId}`, class: 'text-primary font-medium hover:underline' }, { default: () => title })
     }
   },
   {
@@ -1023,7 +1023,7 @@ const submittedIndividualSubmissionColumns: TableColumn<IndividualSubmission>[] 
       const title = row.original.assessmentSection?.assessmentId?.title ?? '—'
       const submissionId = row.original._id
       if (!submissionId) return title
-      return h(NuxtLink, { to: `/details-submissions-indi?id=${submissionId}`, class: 'text-primary font-medium hover:underline' }, { default: () => title })
+      return h(NuxtLink, { to: `/teacher-interface/t-details-submissions-indi?id=${submissionId}`, class: 'text-primary font-medium hover:underline' }, { default: () => title })
     }
   },
   {
@@ -1072,7 +1072,7 @@ const pendingIndividualSubmissionColumns: TableColumn<IndividualSubmission>[] = 
       const title = row.original.assessmentSection?.assessmentId?.title ?? '—'
       const submissionId = row.original._id
       if (!submissionId) return title
-      return h(NuxtLink, { to: `/details-submissions-indi?id=${submissionId}`, class: 'text-primary font-medium hover:underline' }, { default: () => title })
+      return h(NuxtLink, { to: `/teacher-interface/t-details-submissions-indi?id=${submissionId}`, class: 'text-primary font-medium hover:underline' }, { default: () => title })
     }
   },
   {
@@ -1364,7 +1364,7 @@ async function onDeleteStudent() {
                     <div v-for="guardian in guardians" :key="guardian._id" class="flex items-center gap-4">
                       <UAvatar :src="guardian.profileImageURL" :alt="`${guardian.firstName} ${guardian.lastName}`" />
                       <div>
-                        <NuxtLink :to="`/profile-guardian?id=${guardian._id}`" class="text-primary font-medium hover:underline">
+                        <NuxtLink :to="`/teacher-interface/t-profile-guardian?id=${guardian._id}`" class="text-primary font-medium hover:underline">
                           {{ guardian.firstName }} {{ guardian.lastName }}
                         </NuxtLink>
                       </div>

@@ -433,28 +433,34 @@ async function confirmDeleteSection() {
 // END DELETE SECTION
 
 // ADD STUDENT TO SECTION (sectionless students)
+type SectionlessStudent = { _id: string; firstName: string; lastName: string; email?: string }
+
+const { data: sectionlessStudents, pending: sectionlessStudentsLoading, refresh: refreshSectionlessStudents } = useLazyAsyncData<SectionlessStudent[]>(
+  'sectionless-students',
+  () => $fetch<any>(`${API_BASE}/api/teacher/students/sectionless/all`, {
+    headers: { Authorization: `${useAuthToken().value}` },
+    onResponseError({ response }) {
+      console.error('Failed to load sectionless students', response._data)
+      toast.add({ title: 'Error', description: 'Failed to load sectionless students.', color: 'error' })
+    }
+  }),
+  {
+    transform: (response: any): SectionlessStudent[] => {
+      const list = response?.data ?? response?.students ?? response
+      return Array.isArray(list) ? list : []
+    },
+    default: () => []
+  }
+)
+
 const isAddStudentOpen = ref(false)
-const sectionlessStudents = ref<{ _id: string; firstName: string; lastName: string; email?: string }[]>([])
-const sectionlessStudentsLoading = ref(false)
 const addStudentSelectedId = ref<string | undefined>(undefined)
 const isAddStudentSubmitting = ref(false)
 
-function openAddStudentModal() {
+async function openAddStudentModal() {
   isAddStudentOpen.value = true
   addStudentSelectedId.value = undefined
-  sectionlessStudentsLoading.value = true
-  $fetch(`${API_BASE}/api/teacher/student/sectionless/all`, {
-    headers: { Authorization: `${useAuthToken().value}` }
-  })
-    .then((data: any) => {
-      const list = data?.data ?? data?.students ?? data
-      sectionlessStudents.value = Array.isArray(list) ? list : []
-      sectionlessStudentsLoading.value = false
-    })
-    .catch(() => {
-      sectionlessStudentsLoading.value = false
-      toast.add({ title: 'Error', description: 'Failed to load sectionless students.', color: 'error' })
-    })
+  await refreshSectionlessStudents()
 }
 
 const addStudentDropdownItems = computed(() =>
@@ -473,6 +479,7 @@ async function confirmAddStudent() {
     isAddStudentOpen.value = false
     addStudentSelectedId.value = undefined
     await refreshStudents()
+    await refreshSectionlessStudents()
   } catch (error) {
     console.error('Error adding student to section', error)
     toast.add({ title: 'Error', description: 'Failed to add student to section.', color: 'error' })
@@ -522,24 +529,24 @@ const allAssessmentsLoading = ref(false)
 const assignAssessmentSelectedId = ref<string | undefined>(undefined)
 const assignAssessmentOutputType = ref<'class' | 'individual' | null>(null)
 
-function openAssignAssessmentModal() {
+async function openAssignAssessmentModal() {
   isAssignAssessmentOpen.value = true
   assignAssessmentSelectedId.value = undefined
   assignAssessmentOutputType.value = null
   allAssessmentsLoading.value = true
-  $fetch(`${API_BASE}/api/teacher/assessments`, {
-    headers: { Authorization: `${useAuthToken().value}` }
-  })
-    .then((response: any) => {
-      const list = response?.data ?? response?.assessments ?? response
-      const rows = Array.isArray(list) ? list : []
-      allAssessments.value = rows.map((a: any) => ({ _id: a._id, title: a.title ?? '' }))
-      allAssessmentsLoading.value = false
+  try {
+    const response = await $fetch<any>(`${API_BASE}/api/teacher/assessments`, {
+      headers: { Authorization: `${useAuthToken().value}` }
     })
-    .catch(() => {
-      allAssessmentsLoading.value = false
-      toast.add({ title: 'Error', description: 'Failed to load assessments.', color: 'error' })
-    })
+    const list = response?.data ?? response?.assessments ?? response
+    const rows = Array.isArray(list) ? list : []
+    allAssessments.value = rows.map((a: any) => ({ _id: a._id, title: a.title ?? '' }))
+  } catch (error) {
+    console.error('Failed to load assessments', error)
+    toast.add({ title: 'Error', description: 'Failed to load assessments.', color: 'error' })
+  } finally {
+    allAssessmentsLoading.value = false
+  }
 }
 
 const assignAssessmentDropdownItems = computed(() =>
@@ -634,27 +641,27 @@ const addJournalSelectedId = ref<string | undefined>(undefined)
 const addJournalStartDate = ref<string>('')
 const addJournalEndDate = ref<string>('')
 
-function openAddJournalModal() {
+async function openAddJournalModal() {
   isAddJournalOpen.value = true
   addJournalSelectedId.value = undefined
   addJournalStartDate.value = ''
   addJournalEndDate.value = ''
   journalsLoading.value = true
-  $fetch(`${API_BASE}/api/teacher/journals`, {
-    headers: { Authorization: `${useAuthToken().value}` }
-  })
-    .then((response: any) => {
-      const list = response?.data ?? response?.journals ?? response
-      const rows = Array.isArray(list) ? list : []
-      availableJournals.value = rows
-        .filter((j: any) => j && j._id && j.title)
-        .map((j: any) => ({ _id: j._id, title: j.title ?? '' }))
-      journalsLoading.value = false
+  try {
+    const response = await $fetch<any>(`${API_BASE}/api/teacher/journals`, {
+      headers: { Authorization: `${useAuthToken().value}` }
     })
-    .catch(() => {
-      journalsLoading.value = false
-      toast.add({ title: 'Error', description: 'Failed to load journals.', color: 'error' })
-    })
+    const list = response?.data ?? response?.journals ?? response
+    const rows = Array.isArray(list) ? list : []
+    availableJournals.value = rows
+      .filter((j: any) => j && j._id && j.title)
+      .map((j: any) => ({ _id: j._id, title: j.title ?? '' }))
+  } catch (error) {
+    console.error('Failed to load journals', error)
+    toast.add({ title: 'Error', description: 'Failed to load journals.', color: 'error' })
+  } finally {
+    journalsLoading.value = false
+  }
 }
 
 const addJournalDropdownItems = computed(() =>
@@ -1246,7 +1253,7 @@ const journalcolumns: TableColumn<Journal>[] = [
               @click="closeUnassignStudentConfirm">
               Cancel
             </UButton>
-            <UButton color="red" :loading="isUnassignStudentSubmitting" :disabled="isUnassignStudentSubmitting"
+            <UButton color="error" :loading="isUnassignStudentSubmitting" :disabled="isUnassignStudentSubmitting"
               @click="confirmUnassignStudent">
               Remove
             </UButton>
