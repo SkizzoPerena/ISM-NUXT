@@ -168,7 +168,7 @@ const { data: journalEntries, status: journalEntriesStatus, refresh: refreshJour
 // Fetch assigned group assessments for the section
 const { data: groupAssessments, status: groupAssessmentsStatus, refresh: refreshGroupAssessments } = await useAsyncData<Assessment[]>(
   `teacher-section-group-assessments-${sectionId.value}`,
-  () => $fetch(`${API_BASE}/api/teacher/assessment-sections/${sectionId.value}/group`, {
+  () => $fetch(`${API_BASE}/api/teacher/assessment-sections/section/${sectionId.value}/group`, {
     headers: {
       Authorization: `${useAuthToken().value}`
     },
@@ -208,7 +208,7 @@ const { data: groupAssessments, status: groupAssessmentsStatus, refresh: refresh
 // Fetch assigned individual assessments for the section
 const { data: individualAssessments, status: individualAssessmentsStatus, refresh: refreshIndividualAssessments } = await useAsyncData<Assessment[]>(
   `teacher-section-individual-assessments-${sectionId.value}`,
-  () => $fetch(`${API_BASE}/api/teacher/assessment-sections/${sectionId.value}/individual`, {
+  () => $fetch(`${API_BASE}/api/teacher/assessment-sections/section/${sectionId.value}/individual`, {
     headers: {
       Authorization: `${useAuthToken().value}`
     },

@@ -189,7 +189,7 @@ const { data: logsResponse } = await useAsyncData<{ logs: ActivityLog[]; total?:
   () => {
     // Only fetch logs if the teacher ID is available.
     if (!teacherId.value) return Promise.resolve({ logs: [], total: 0 })
-    return $fetch(`${API_BASE}/api/teacher/logs/${teacherId.value}`, {
+    return $fetch(`${API_BASE}/api/teacher/logs`, {
       query: { page: logsPage.value, limit: ITEMS_PER_PAGE },
       headers: {
         Authorization: `${useAuthToken().value}`,

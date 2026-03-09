@@ -104,71 +104,6 @@ type RubricQuestion = {
 
 const LIKERT_CHOICES = ['Strongly Agree', 'Somewhat Agree', 'Neutral', 'Somewhat Disagree', 'Strongly Disagree']
 
-// Fetch submission by id, then assessment and teacher
-const { data, status } = await useAsyncData<AssessmentPageData | null>(
-  `assessment-page-${individualSubmissionId.value}`,
-  async () => {
-    if (!individualSubmissionId.value) return null
-    let assessmentId: string | undefined
-    try {
-      const submissionResponse: any = await $fetch(`${API_BASE}/api/admin/individual-submission/${individualSubmissionId.value}`, {
-        headers: { Authorization: `${useAuthToken().value}` },
-      })
-      const found = submissionResponse?.individualAssessmentSubmission ?? submissionResponse?.data ?? submissionResponse
-      assessmentId = found?.assessmentSection?.assessmentId?._id
-    } catch (e) {
-      console.error('Failed to fetch individual submission', e)
-      return null
-    }
-    if (!assessmentId) return null
-
-    const assessmentResponse: any = await $fetch(`${API_BASE}/api/admin/assessments/${assessmentId}`, {
-      headers: { Authorization: `${useAuthToken().value}` },
-    })
-    const assessmentData = assessmentResponse?.assessment || assessmentResponse?.data || assessmentResponse
-    if (!assessmentData) return null
-
-    let rubric = null
-    if (assessmentData.rubricId) {
-      try {
-        const rubricResponse: any = await $fetch(`${API_BASE}/api/admin/rubrics/${assessmentData.rubricId}`, {
-          headers: { Authorization: `${useAuthToken().value}` },
-        })
-        rubric = rubricResponse?.rubric || rubricResponse
-      } catch (error) {
-        console.error('Error fetching rubric details:', error)
-      }
-    }
-
-    const assessmentDetail: AssessmentDetail = {
-      _id: assessmentData._id,
-      title: assessmentData.title,
-      createdAt: assessmentData.createdAt,
-      instructions: assessmentData.instructions,
-      updatedAt: assessmentData.updatedAt,
-      isDeleted: assessmentData.isDeleted,
-      rubricId: assessmentData.rubricId,
-      supplementaryImageURL: assessmentData.supplementaryImageURL,
-      supplementaryLinks: assessmentData.supplementaryLinks || [],
-      teacherId: assessmentData.teacherId,
-      rubric: rubric,
-    }
-
-    if (assessmentDetail.teacherId?._id) {
-      const teachersResponse: any = await $fetch(`${API_BASE}/api/admin/teacher`, {
-        headers: { Authorization: `${useAuthToken().value}` },
-      })
-      const allTeachersData = teachersResponse?.data || teachersResponse?.teachers || teachersResponse
-      if (Array.isArray(allTeachersData)) {
-        const foundTeacher = allTeachersData.find((t: any) => t._id === assessmentDetail.teacherId._id)
-        if (foundTeacher) return { assessment: assessmentDetail, teacher: foundTeacher }
-      }
-    }
-    return { assessment: assessmentDetail, teacher: null }
-  },
-  { watch: [individualSubmissionId] }
-)
-
 const { data: submission, status: submissionStatus } = await useAsyncData<IndividualSubmission | null>(
   `individual-submission-${individualSubmissionId.value}`,
   async () => {
@@ -186,8 +121,53 @@ const { data: submission, status: submissionStatus } = await useAsyncData<Indivi
   { watch: [individualSubmissionId] }
 )
 
-const assessment = computed(() => data.value?.assessment)
-const teacher = computed(() => data.value?.teacher)
+// Derive assessment and teacher info directly from the individual submission payload
+const assessment = computed<AssessmentDetail | null>(() => {
+  const a = submission.value?.assessmentSection?.assessmentId as any
+  if (!a) return null
+  const rubricSource = a.rubricId || a.rubric
+  const rubric =
+    rubricSource && typeof rubricSource === 'object'
+      ? {
+          _id: rubricSource._id,
+          title: rubricSource.title,
+          description: rubricSource.description,
+          questions: rubricSource.questions ?? [],
+        }
+      : null
+
+  return {
+    _id: a._id,
+    title: a.title,
+    createdAt: a.createdAt,
+    instructions: a.instructions,
+    updatedAt: a.updatedAt,
+    isDeleted: a.isDeleted,
+    rubricId: typeof a.rubricId === 'string' ? a.rubricId : a.rubricId?._id,
+    supplementaryImageURL: a.supplementaryImageURL,
+    supplementaryLinks: a.supplementaryLinks ?? [],
+    teacherId: a.teacherId,
+    rubric,
+  }
+})
+
+const teacher = computed<TeacherInfo | null>(() => {
+  const t = (submission.value as any)?.assessmentSection?.assessmentId?.teacherId
+  if (!t) return null
+  if (typeof t === 'object') {
+    return {
+      _id: t._id,
+      firstName: t.firstName ?? '',
+      lastName: t.lastName ?? '',
+      profileImageURL: t.profileImageURL,
+    }
+  }
+  return {
+    _id: String(t),
+    firstName: '',
+    lastName: '',
+  }
+})
 const assessmentTitle = computed(() =>
   assessment.value?.title ?? submission.value?.assessmentSection?.assessmentId?.title ?? '—'
 )
@@ -502,10 +482,10 @@ async function submitOverrideAnalysis() {
 
 <template>
   <UContainer>
-    <UPageCard v-if="status === 'pending'" class="flex items-center justify-center h-64">
+    <UPageCard v-if="submissionStatus !== 'success'" class="flex items-center justify-center h-64">
       <p>Loading assessment details...</p>
     </UPageCard>
-    <template v-else-if="assessment && data">
+    <template v-else-if="assessment">
       <UPageCard>
         <UContainer>
           <UPageHeader :title="titleWithSuffix" style="border-bottom: 0; padding-bottom: 0;">
@@ -525,7 +505,7 @@ async function submitOverrideAnalysis() {
           <UPageGrid>
             <UContainer class="flex justify-center lg:col-span-3 min-w-0 w-full max-w-full overflow-hidden">
               <div class="w-full max-w-full">
-                <div v-if="submissionStatus === 'pending'" class="flex items-center justify-center w-full aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg">
+                <div v-if="submissionStatus !== 'success'" class="flex items-center justify-center w-full aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg">
                   <p>Loading submission...</p>
                 </div>
                 <template v-else-if="isSubmittedState">
