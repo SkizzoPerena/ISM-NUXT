@@ -33,9 +33,9 @@ const user = useState<User | null>('user')
       </UPageCard>
 
       <UPageCard title="Materials" icon="i-lucide-book-open-text" orientation="horizontal">
-        <div><UButton to="/assessments" block >Assessments</UButton>
-        <UButton to="/journals" block class="mt-4">Journals</UButton>
-        <UButton to="/rubrics" block class="mt-4">Rubrics</UButton>
+        <div><UButton to="../teacher-interface/t-assessments" block >Assessments</UButton>
+        <UButton to="../teacher-interface/t-journals" block class="mt-4">Journals</UButton>
+        <UButton to="../teacher-interface/t-rubrics" block class="mt-4">Rubrics</UButton>
         </div>
       </UPageCard>
     </UPageGrid>

@@ -409,30 +409,7 @@ const availableGuardiansLoading = ref(false)
 const assignGuardianSelectedId = ref<string | undefined>(undefined)
 const isAssignGuardianSubmitting = ref(false)
 
-function openAssignGuardianModal() {
-  isAssignGuardianOpen.value = true
-  assignGuardianSelectedId.value = undefined
-  availableGuardiansLoading.value = true
-  $fetch(`${API_BASE}/api/teacher/guardian`, {
-    headers: { Authorization: `${useAuthToken().value}` }
-  })
-    .then((response: any) => {
-      const list = response?.data ?? response?.guardians ?? response
-      const rows = Array.isArray(list) ? list : []
-      availableGuardians.value = rows.map((g: any) => ({
-        _id: g._id,
-        firstName: g.firstName,
-        lastName: g.lastName,
-        profileImageURL: g.profileImageURL
-      }))
-      availableGuardiansLoading.value = false
-    })
-    .catch((error) => {
-      console.error('Error loading available guardians', error)
-      availableGuardiansLoading.value = false
-      toast.add({ title: 'Error', description: 'Failed to load available guardians.', color: 'error' })
-    })
-}
+
 
 const assignGuardianDropdownItems = computed(() =>
   availableGuardians.value.map((g) => ({ label: `${g.firstName} ${g.lastName}`, value: g._id }))
@@ -1134,109 +1111,6 @@ const pendingIndividualSubmissionColumns: TableColumn<IndividualSubmission>[] = 
   },
 ]
 
-// EDIT / DELETE STUDENT
-const isEditOpen = ref(false)
-const isDeleteOpen = ref(false)
-const isEditSubmitting = ref(false)
-const isDeleteSubmitting = ref(false)
-
-const editState = reactive({
-  firstName: '',
-  lastName: '',
-  email: '',
-  gender: '',
-})
-
-type EditSchema = typeof editState
-
-function validateEdit(state: Partial<EditSchema>): FormError[] {
-  const errors: FormError[] = []
-  if (!state.firstName) errors.push({ name: 'firstName', message: 'Required' })
-  if (!state.lastName) errors.push({ name: 'lastName', message: 'Required' })
-  if (!state.email) errors.push({ name: 'email', message: 'Required' })
-  if (!state.gender) errors.push({ name: 'gender', message: 'Required' })
-  return errors
-}
-
-const genderOptions = ref(['Male', 'Female'])
-
-function openEditModal() {
-  if (!student.value) return
-  editState.firstName = student.value.firstName
-  editState.lastName = student.value.lastName
-  editState.email = student.value.email
-  editState.gender = student.value.gender
-  isEditOpen.value = true
-}
-
-async function onSubmitEdit(event: FormSubmitEvent<EditSchema>) {
-  if (!studentId.value || isEditSubmitting.value) return
-  isEditSubmitting.value = true
-  try {
-    await $fetch(`${API_BASE}/api/teacher/students/${studentId.value}`, {
-      method: 'PATCH',
-      headers: {
-        Authorization: `${useAuthToken().value}`,
-      },
-      body: {
-        firstName: editState.firstName,
-        lastName: editState.lastName,
-        email: editState.email,
-        gender: editState.gender,
-      },
-    })
-
-    toast.add({
-      title: 'Success',
-      description: 'Student updated successfully.',
-      color: 'success',
-    })
-
-    isEditOpen.value = false
-    await refreshNuxtData(`student-${studentId.value}`)
-  } catch (error) {
-    console.error('Error updating student:', error)
-    toast.add({
-      title: 'Error',
-      description: 'Failed to update student.',
-      color: 'error',
-    })
-  } finally {
-    isEditSubmitting.value = false
-  }
-}
-
-async function onDeleteStudent() {
-  if (!studentId.value || isDeleteSubmitting.value) return
-  isDeleteSubmitting.value = true
-  try {
-    await $fetch(`${API_BASE}/api/teacher/students/${studentId.value}`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `${useAuthToken().value}`,
-      },
-    })
-
-    toast.add({
-      title: 'Deleted',
-      description: 'Student deleted successfully.',
-      color: 'success',
-    })
-
-    isDeleteOpen.value = false
-    await navigateTo('/students')
-  } catch (error) {
-    console.error('Error deleting student:', error)
-    toast.add({
-      title: 'Error',
-      description: 'Failed to delete student.',
-      color: 'error',
-    })
-  } finally {
-    isDeleteSubmitting.value = false
-  }
-}
-
 </script>
 
 <template>
@@ -1276,22 +1150,6 @@ async function onDeleteStudent() {
                   #{{ student._id }}
                 </div>
               </UPageHeader>
-
-              <div class="flex items-start gap-2">
-                <UButton
-                  icon="i-lucide-pencil"
-                  variant="ghost"
-                  aria-label="Edit student"
-                  @click="openEditModal"
-                />
-                <UButton
-                  icon="i-lucide-trash-2"
-                  color="error"
-                  variant="ghost"
-                  aria-label="Delete student"
-                  @click="isDeleteOpen = true"
-                />
-              </div>
             </div>
           </UContainer>
         </div>
@@ -1388,14 +1246,6 @@ async function onDeleteStudent() {
                 <UContainer v-if="guardians && guardians.length > 0">
                   <div class="flex items-center justify-between">
                     <h3 class="text-lg font-semibold">Assigned Guardians</h3>
-                    <UButton
-                      icon="i-lucide-plus"
-                      variant="ghost"
-                      color="success"
-                      square
-                      aria-label="Assign guardian"
-                      @click="openAssignGuardianModal"
-                    />
                   </div>
 
                   <div class="space-y-4 mt-4">
@@ -1406,28 +1256,12 @@ async function onDeleteStudent() {
                           {{ guardian.firstName }} {{ guardian.lastName }}
                         </NuxtLink>
                       </div>
-                      <UButton
-                        icon="i-lucide-trash-2"
-                        variant="ghost"
-                        color="error"
-                        aria-label="Remove guardian from student"
-                        class="ml-auto shrink-0"
-                        @click="openUnassignGuardianConfirm(guardian)"
-                      />
                     </div>
                   </div>
                 </UContainer>
                 <UContainer v-else-if="guardiansStatus === 'success'">
                   <div class="flex items-center justify-between">
                     <h3 class="text-lg font-semibold">Assigned Guardians</h3>
-                    <UButton
-                      icon="i-lucide-plus"
-                      variant="ghost"
-                      color="success"
-                      square
-                      aria-label="Assign guardian"
-                      @click="openAssignGuardianModal"
-                    />
                   </div>
                   <p class="mt-4">No guardians assigned to this student.</p>
                 </UContainer>
@@ -1634,92 +1468,6 @@ async function onDeleteStudent() {
           </template>
         </UTabs>
       </UPageCard>
-
-      <!-- Edit Student Modal -->
-      <UModal v-model:open="isEditOpen" :dismissible="!isEditSubmitting">
-        <template #header>
-          <div class="flex items-center justify-between w-full">
-            <h3 class="text-lg font-semibold">Edit Student</h3>
-            <UButton
-              icon="i-lucide-x"
-              variant="ghost"
-              :disabled="isEditSubmitting"
-              @click="isEditOpen = false"
-            />
-          </div>
-        </template>
-        <template #body>
-          <UForm
-            :validate="validateEdit"
-            :state="editState"
-            class="space-y-4"
-            @submit="onSubmitEdit"
-          >
-            <UFormField label="First Name" name="firstName" required block>
-              <UInput v-model="editState.firstName" class="w-full" />
-            </UFormField>
-
-            <UFormField label="Last Name" name="lastName" required block>
-              <UInput v-model="editState.lastName" class="w-full" />
-            </UFormField>
-
-            <UFormField label="Email Address" name="email" required block>
-              <UInput v-model="editState.email" type="email" class="w-full" />
-            </UFormField>
-
-            <UFormField label="Gender" name="gender" required block>
-              <USelect
-                v-model="editState.gender"
-                :items="genderOptions"
-                placeholder="Select gender"
-                class="w-full"
-              />
-            </UFormField>
-
-            <div class="flex justify-end gap-2">
-              <UButton
-                type="button"
-                variant="outline"
-                :disabled="isEditSubmitting"
-                @click="isEditOpen = false"
-              >
-                Cancel
-              </UButton>
-              <UButton type="submit" :loading="isEditSubmitting" :disabled="isEditSubmitting">
-                Update Student
-              </UButton>
-            </div>
-          </UForm>
-        </template>
-      </UModal>
-
-      <!-- Delete Confirmation Modal -->
-      <UModal v-model:open="isDeleteOpen" :dismissible="!isDeleteSubmitting">
-        <template #header>
-          <h3 class="text-lg font-semibold">Delete Student</h3>
-        </template>
-        <template #body>
-          <p>Are you sure you want to delete this student? This action cannot be undone.</p>
-          <div class="flex justify-end gap-2 mt-6">
-            <UButton
-              type="button"
-              variant="outline"
-              :disabled="isDeleteSubmitting"
-              @click="isDeleteOpen = false"
-            >
-              Cancel
-            </UButton>
-            <UButton
-              color="error"
-              :loading="isDeleteSubmitting"
-              :disabled="isDeleteSubmitting"
-              @click="onDeleteStudent"
-            >
-              Delete
-            </UButton>
-          </div>
-        </template>
-      </UModal>
 
       <!-- Assign Section Modal -->
       <UModal v-model:open="isAssignSectionOpen" :dismissible="!isAssignSectionSubmitting">

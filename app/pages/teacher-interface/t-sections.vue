@@ -7,29 +7,40 @@ definePageMeta({
   layout: 't-dashboard',
 })
 
-const { data, status } = await useAsyncData('sections',
-  () => $fetch<Section[]>('https://noteworthy-z9k0.onrender.com/api/teacher/sections', {
-    headers: {
-      Authorization: `${useAuthToken().value}`
-    },
-    onResponse({ response }) {
-      // This will log the raw response body.
-      // Check your browser's developer console to see the structure of the data.
-      console.log('API Response:', response._data)
-    }
-  }),
+const API_BASE = 'https://noteworthy-z9k0.onrender.com'
+
+const { data, status } = await useAsyncData(
+  'sections-with-student-counts',
+  async () => {
+    // 1. Fetch all sections
+    const sectionsResponse: any = await $fetch(`${API_BASE}/api/teacher/sections`, {
+      headers: {
+        Authorization: `${useAuthToken().value}`,
+      },
+    })
+
+    const sections = sectionsResponse?.data || sectionsResponse?.sections || []
+    if (!Array.isArray(sections)) return []
+
+    // 2. For each section, fetch its students and get the count
+    const sectionsWithCounts = await Promise.all(
+      sections.map(async (section: any) => {
+        const studentsResponse: any = await $fetch(`${API_BASE}/api/teacher/students/section/${section._id}`, {
+          headers: {
+            Authorization: `${useAuthToken().value}`,
+          },
+        })
+        const students = studentsResponse?.data || studentsResponse?.students || []
+        return {
+          _id: section._id,
+          name: section.name,
+          studentCount: Array.isArray(students) ? students.length : 0,
+        }
+      })
+    )
+    return sectionsWithCounts
+  },
   {
-    transform: (response: any) => {
-      // The API might return data inside a property, e.g., { "data": [...] }
-      // This line tries to find the array, assuming it might be nested.
-      const sectionData = response?.data || response?.sections || response
-      const rows = Array.isArray(sectionData) ? sectionData : []
-      return rows.map((section: any) => ({
-        _id: section._id,
-        name: section.name,
-        studentCount: Array.isArray(section.students) ? section.students.length : 0,
-        }))
-    },
     lazy: false,
   }
 )
