@@ -285,7 +285,7 @@ async function onDeleteGuardian() {
       <UPageCard>
         <div class="flex items-center">
           <NuxtImg :src="guardian.profileImageURL || 'https://placehold.co/400x400'"
-            :alt="`${guardian.firstName} ${guardian.lastName}`" width="200" height="200" class="rounded-full" fit="fill"
+            :alt="`${guardian.firstName} ${guardian.lastName}`" width="200" height="200" class="rounded-full" fit="cover"
             preload />
           <UContainer class="ml-8 w-full">
             <div class="flex items-start justify-between w-full">

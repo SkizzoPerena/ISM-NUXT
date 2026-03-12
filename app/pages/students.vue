@@ -189,6 +189,7 @@ const columnFilters = ref([
 
 const isStudentModalOpen = ref(false)
 const isSubmitting = ref(false)
+const show = ref(false)
 
 const state = reactive({
   firstName: '',
@@ -302,7 +303,14 @@ const SAAB = ref(['Male', 'Female'])
                 </UFormField>
 
                 <UFormField label="Password" name="password" required>
-                  <UInput v-model="state.password" type="password" placeholder="password" class="w-full" />
+                  <UInput v-model="state.password" placeholder="Enter your password" class="w-full"
+            :type="show ? 'text' : 'password'" :ui="{ trailing: 'pe-1' }">
+            <template #trailing>
+              <UButton color="neutral" variant="link" size="sm" :icon="show ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                :aria-label="show ? 'Hide password' : 'Show password'" :aria-pressed="show" aria-controls="password"
+                @click="show = !show" />
+            </template>
+                  </UInput>
                 </UFormField>
 
                 <UFormField label="Sex assigned at birth" name="gender" required>

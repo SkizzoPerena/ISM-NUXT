@@ -100,6 +100,7 @@ const genderOptions = ['Male', 'Female']
 // CREATE
 const isCreateOpen = ref(false)
 const isCreateSubmitting = ref(false)
+const show = ref(false)
 
 const createState = reactive({
   firstName: '',
@@ -193,7 +194,14 @@ async function onSubmitCreate(event: FormSubmitEvent<CreateSchema>) {
             </UFormField>
 
             <UFormField label="Password" name="password" required block>
-              <UInput v-model="createState.password" type="password" placeholder="password" class="w-full" />
+              <UInput v-model="createState.password" placeholder="Enter your password" class="w-full"
+            :type="show ? 'text' : 'password'" :ui="{ trailing: 'pe-1' }">
+            <template #trailing>
+              <UButton color="neutral" variant="link" size="sm" :icon="show ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                :aria-label="show ? 'Hide password' : 'Show password'" :aria-pressed="show" aria-controls="password"
+                @click="show = !show" />
+            </template>
+                  </UInput>
             </UFormField>
 
             <UFormField label="Sex assigned at birth" name="gender" required block>
