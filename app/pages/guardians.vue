@@ -87,6 +87,7 @@ const UButton = resolveComponent('UButton')
 const columns: TableColumn<Guardian>[] = [
   {
     accessorKey: 'name',
+    accessorFn: row => `${row.name} ${row.email}`,
     cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
       h(UAvatar, { src: row.original.profileImageURL, alt: row.original.name }),
       h('div', undefined, [
@@ -111,12 +112,7 @@ const columns: TableColumn<Guardian>[] = [
 
 const table = useTemplateRef('table')
 
-const columnFilters = ref([
-  {
-    id: 'name',
-    value: ''
-  }
-])
+const globalFilter = ref('')
 
 // END TABLE FILTER SCRIPT
 
@@ -191,9 +187,9 @@ async function onSubmitCreate(event: FormSubmitEvent<CreateSchema>) {
       <div class="flex items-center gap-4">
         <div class="text-lg font-bold">Guardians</div>
         <div style="margin-left: auto">
-          <UInput :model-value="table?.tableApi?.getColumn('name')?.getFilterValue() as string" class="max-w-sm mr-5"
-            placeholder="Search guardians..."
-            @update:model-value="table?.tableApi?.getColumn('name')?.setFilterValue($event)" />
+          <UInput  v-model="globalFilter" class="max-w-sm mr-5"
+            placeholder="Search guardians"
+            />
           <UButton
             label="Add New Guardian"
             :loading="isCreateSubmitting"
@@ -249,7 +245,7 @@ async function onSubmitCreate(event: FormSubmitEvent<CreateSchema>) {
         Wrapping the component in <ClientOnly> ensures it only renders in the browser, avoiding the error.
       -->
       <ClientOnly>
-        <UTable ref="table" v-model:column-filters="columnFilters" v-model:sort="sort" sticky :data="sortedData" :columns="columns" :loading="status === 'pending'" class="flex-1 max-h-[70vh]" />
+        <UTable ref="table" v-model:global-filter="globalFilter" v-model:sort="sort" sticky :data="sortedData" :columns="columns" :loading="status === 'pending'" class="flex-1 max-h-[70vh]" />
       </ClientOnly>
     </UPageCard>
   </UContainer>

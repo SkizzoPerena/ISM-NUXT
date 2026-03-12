@@ -131,10 +131,11 @@ const columns: TableColumn<Student>[] = [
   {
     accessorKey: 'name',
     header: 'Name',
+    accessorFn: row => `${row.name} ${row.email}`,
     cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
       h(UAvatar, { src: row.original.profileImageURL, alt: row.original.name }),
       h('div', undefined, [ // Wrap the student's name in a NuxtLink
-        h(NuxtLink, { to: `/teacher-interface/t-profile-student?id=${row.original._id}`, class: 'text-primary font-medium hover:underline'}, { default: () => row.getValue('name') }),
+        h(NuxtLink, { to: `/teacher-interface/t-profile-student?id=${row.original._id}`, class: 'text-primary font-medium hover:underline'}, { default: () => row.original.name }),
         h('p', { class: 'text-sm text-gray-500 dark:text-gray-400' }, row.original.email)
       ])
     ])
@@ -151,18 +152,15 @@ const columns: TableColumn<Student>[] = [
     {
     accessorKey: 'assignedSections',
     header: 'Section',
-    cell: ({ row }) => {
-  const sections = row.getValue('assignedSections') as Section[]
-  
-  if (!sections || sections.length === 0) return 'No Section'
-  return sections.map(section => section.name).join(', ')
-  }
+    accessorFn: row => (row.assignedSections || []).map((s: SectionInfo) => s.name).join(', '),
+    cell: ({ row }) => (row.getValue('assignedSections') as string) || 'No Section'
   },
     {
     accessorKey: 'assignedInstruments',
     header: 'Instruments',
+    accessorFn: row => (row.assignedInstruments || []).map((i: InstrumentInfo) => `${i.instrumentName} ${i.proficiency}`).join(', '),
     cell: ({ row }) => {
-      const instruments = row.getValue('assignedInstruments') as InstrumentInfo[];
+      const instruments = row.original.assignedInstruments as InstrumentInfo[];
       if (!instruments || instruments.length === 0) {
         return h('span', 'No instruments');
       }
@@ -184,12 +182,7 @@ const columns: TableColumn<Student>[] = [
 
 const table = useTemplateRef('table')
 
-const columnFilters = ref([
-  {
-    id: 'name',
-    value: ''
-  }
-])
+const globalFilter = ref('')
 
 // END TABLE FILTER SCRIPT
 </script>
@@ -197,22 +190,19 @@ const columnFilters = ref([
 <template>
   <UContainer>
     <UPageCard>
-
       <div class="flex items-center gap-4">
         <div class="text-lg font-bold">Students</div>
         <div style="margin-left: auto">
           <UInput
-            :model-value="table?.tableApi?.getColumn('name')?.getFilterValue() as string"
+            v-model="globalFilter"
             class="max-w-sm mr-5"
             placeholder="Search students..."
-            @update:model-value="table?.tableApi?.getColumn('name')?.setFilterValue($event)"
           />
 
         </div>
       </div><USeparator />
 
-
-      <UTable ref="table" v-model:column-filters="columnFilters" sticky :data="data || []" :columns="columns" :loading="status === 'pending'" class="flex-1 max-h-[70vh]" />
+      <UTable ref="table" v-model:global-filter="globalFilter" sticky :data="data || []" :columns="columns" :loading="status === 'pending'" class="flex-1 max-h-[70vh]" />
     </UPageCard>
   </UContainer>
 

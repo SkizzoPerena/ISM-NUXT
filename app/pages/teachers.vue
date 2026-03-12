@@ -60,10 +60,11 @@ const columns: TableColumn<Teacher>[] = [
   {
     accessorKey: 'name',
     header: 'Name',
+    accessorFn: row => `${row.name} ${row.email}`,
     cell: ({ row }) => h('div', { class: 'flex items-center gap-3' }, [
       h(UAvatar, { src: row.original.profileImageURL, alt: row.original.name }),
       h('div', undefined, [
-        h(NuxtLink, { to: `/profile-teacher?id=${row.original._id}`, class: 'text-primary font-medium hover:underline'}, { default: () => row.getValue('name') }),
+        h(NuxtLink, { to: `/profile-teacher?id=${row.original._id}`, class: 'text-primary font-medium hover:underline'}, { default: () => row.original.name }),
         h('p', { class: 'text-sm text-gray-500 dark:text-gray-400' }, row.original.email)
       ]),
       
@@ -81,7 +82,8 @@ const columns: TableColumn<Teacher>[] = [
   {
     accessorKey: 'assignedSections',
     header: 'Sections',
-    cell: ({ row }) => (row.getValue('assignedSections') as any[])?.length
+    accessorFn: row => (row.assignedSections || []).length,
+    cell: ({ row }) => row.getValue('assignedSections')
   },
 ]
 
@@ -165,7 +167,7 @@ async function onSubmitCreate(event: FormSubmitEvent<CreateSchema>) {
         <div class="text-lg font-bold">Teachers</div>
         <div style="margin-left: auto">
           <UInput v-model="globalFilter" class="max-w-sm mr-5"
-            placeholder="Search teachers..."
+            placeholder="Search teachers"
             />
           <UButton
             label="Add New Teacher"
