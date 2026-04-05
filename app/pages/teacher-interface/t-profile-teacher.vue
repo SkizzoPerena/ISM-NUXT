@@ -281,8 +281,8 @@ async function onProfilePicSelected(event: Event) {
     <UButton block icon="i-lucide-shield-user" size="lg" color="primary" variant="solid" @click="openChangePasswordModal">
     Change Password
   </UButton>
-  <UButton block icon="i-lucide-log-out" size="lg" color="warning" variant="solid" @click="signOut">
-    Sign out
+  <UButton block icon="i-lucide-log-out" size="lg" color="warning" variant="solid" to="/teacher-interface/t-report-issue">
+    Report a Problem
   </UButton>
 
       </UPageGrid>

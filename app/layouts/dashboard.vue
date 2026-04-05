@@ -50,6 +50,11 @@ const items: NavigationMenuItem[][] = [[{
   },
 ]
 },
+{
+  label: 'Reported Issues',
+  icon: 'i-lucide-message-square-warning',
+  to: '/admin-issues',
+}
 ], 
 
 [{
