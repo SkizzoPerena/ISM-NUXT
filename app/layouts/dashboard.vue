@@ -31,7 +31,7 @@ const items: NavigationMenuItem[][] = [[{
   }]
 },
 
-{
+/*{
   label: 'Materials',
   icon: 'i-lucide-book-open-text',
   defaultOpen: true,
@@ -49,7 +49,7 @@ const items: NavigationMenuItem[][] = [[{
     to: '/instruments'
   },
 ]
-},
+},*/
 {
   label: 'Reported Issues',
   icon: 'i-lucide-message-square-warning',

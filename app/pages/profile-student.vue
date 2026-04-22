@@ -826,7 +826,7 @@ function getProficiencyColor(proficiency: string) {
   }
 }
 
-const items = [
+/* const items = [
   {
     label: 'Information',
     description: 'Assigned sections, instruments, and guardians.',
@@ -845,7 +845,7 @@ const items = [
     icon: 'i-lucide-notebook-pen',
     slot: 'journals' as const
   },
-] satisfies TabsItem[]
+] satisfies TabsItem[] */
 
 const journalEntriesExpanded = ref({})
 const assessmentsExpanded = ref({})
@@ -1261,10 +1261,10 @@ async function onDeleteStudent() {
 
 
       <UPageCard class="mt-6">
-        <UTabs :items="items" variant="link" :ui="{ trigger: 'grow' }" class="gap-4 w-full">
-
+        <!--<UTabs :items="items" variant="link" :ui="{ trigger: 'grow' }" class="gap-4 w-full">
+-->
           <!-- ASSIGNMENTS TAB -->
-          <template #assignments="{ item }">
+          <!--<template #assignments="{ item }">-->
             <UPageGrid class="mt-5">
               <div>
                 <UContainer v-if="student.assignedSections && student.assignedSections.length > 0">
@@ -1396,7 +1396,7 @@ async function onDeleteStudent() {
               </div>
             </UPageGrid>
 
-                  <UContainer class="mt-8">
+                  <!--<UContainer class="mt-8">
         <div v-if="!hasAnalysis" class="w-full col-span-full">
           <p class="font-semibold text-lg">Student Summary</p>
           <div class="flex items-center justify-center w-full mb-4">No student summary yet</div>
@@ -1447,9 +1447,9 @@ async function onDeleteStudent() {
           </div>
         </div>
       </UContainer>
-          </template>
+          </template>-->
 
-          <!-- ASSESSMENTS TAB -->
+          <!--
           <template #assessments="{ item }">
             <UContainer class="mt-5">
               <div class="flex items-center justify-between">
@@ -1573,7 +1573,7 @@ async function onDeleteStudent() {
             </UContainer>
           </template>
 
-          <!-- JOURNALS TAB -->
+         
           <template #journals="{ item }">
             <UContainer class="mt-5">
               <div class="text-lg font-semibold">Answered Practice Journals</div>
@@ -1594,7 +1594,7 @@ async function onDeleteStudent() {
               </UTable>
             </UContainer>
           </template>
-        </UTabs>
+        </UTabs> -->
       </UPageCard>
 
       <!-- Edit Student Modal -->

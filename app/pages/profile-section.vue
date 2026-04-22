@@ -256,7 +256,7 @@ const submittedSubmissions = computed(() => {
   return list.filter((entry) => !isPendingSubmission(entry))
 })
 
-const items = [
+/* const items = [
   {
     label: 'People',
     description: 'Make changes to your account here. Click save when you\'re done.',
@@ -275,7 +275,7 @@ const items = [
     icon: 'i-lucide-notebook-pen',
     slot: 'journals' as const
   },
-] satisfies TabsItem[]
+] satisfies TabsItem[] */
 
 
 // PEOPLE TAB SCRIPT
@@ -1462,10 +1462,10 @@ const journalcolumns: TableColumn<Journal>[] = [
     </UPageCard>
 
     <UPageCard class="mt-6">
-      <UTabs :items="items" variant="link" :ui="{ trigger: 'grow' }" class="gap-4 w-full">
-
+      <!--<UTabs :items="items" variant="link" :ui="{ trigger: 'grow' }" class="gap-4 w-full">
+-->
         <!-- PEOPLE TAB -->
-        <template #people="{ item }">
+        <!-- <template #people="{ item }">-->
           <UPageGrid class="mt-5 grid-cols-1 lg:grid-cols-2">
             <UContainer class="min-w-0">
               <div class="flex items-center justify-between">
@@ -1484,12 +1484,13 @@ const journalcolumns: TableColumn<Journal>[] = [
               <UTable :data="teacherData" ref="table" :columns="teacher_columns" :loading="status === 'pending'" />
             </UContainer>
           </UPageGrid>
-        </template>
+        <!-- </template> -->
 
-        <!-- ASSESSMENTS TAB -->
+
+        <!--
         <template #assessment="{ item }">
 
-          <!-- Assessment Accordion -->
+          
           <UContainer class="mt-5">
             <div class="flex items-center justify-between">
               <span class="text-lg font-semibold">Assessments</span>
@@ -1542,9 +1543,7 @@ const journalcolumns: TableColumn<Journal>[] = [
 
           </UContainer>
 
-          <!-- End Assessment Accordion -->
-
-          <!-- Submission Accordion -->
+          
 
           <UContainer class="mt-8">
             <div class="text-lg font-semibold">Class Submissions</div>
@@ -1579,11 +1578,10 @@ const journalcolumns: TableColumn<Journal>[] = [
             </UAccordion>
           </UContainer>
 
-          <!-- End Submission Accordion -->
-
+        
         </template>
 
-        <!-- JOURNALS TAB -->
+
         <template #journals="{ item }">
           <UContainer class="mt-5">
             <div class="flex items-center justify-between">
@@ -1613,7 +1611,7 @@ const journalcolumns: TableColumn<Journal>[] = [
           </UContainer>
 
         </template>
-      </UTabs>
+      </UTabs> -->
     </UPageCard>
 
   </UContainer>
