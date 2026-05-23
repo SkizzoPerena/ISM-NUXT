@@ -1,8 +1,8 @@
 export default defineNuxtRouteMiddleware((to, from) => {
   const authToken = useAuthToken()
 
-  // If the user is trying to access the login page, let them.
-  if (to.path === '/login') {
+  // Public auth routes (no token required).
+  if (to.path === '/login' || to.path.startsWith('/forgot-password')) {
     return
   }
 

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { useApiBase } from '~/composables/useApiBase'
 
 const toast = useToast()
 
-const API_BASE = 'https://noteworthy-z9k0.onrender.com'
+const API_BASE = useApiBase()
 
 const state = reactive({
   email: 'teacherjuan@gmail.com',
@@ -87,7 +88,7 @@ const password = ref('')
 
         <UFormField label="Password" name="password" required>
           <template #hint>
-            <ULink to="#" class="text-primary font-medium" tabindex="-1">Forgot password?</ULink>
+            <ULink to="/forgot-password" class="text-primary font-medium" tabindex="-1">Forgot password?</ULink>
           </template>
           <UInput v-model="state.password" placeholder="Enter your password" class="w-full"
             :type="show ? 'text' : 'password'" :ui="{ trailing: 'pe-1' }">
