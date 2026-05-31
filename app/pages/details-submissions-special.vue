@@ -632,7 +632,7 @@ async function submitOverrideAnalysis() {
                   @click="isAttachLinkModalOpen = true" class="w-full">Attach Video Link</UButton>
                 <div class="min-w-0">
                   <UPopover :content="{ align: 'center', side: 'top' }">
-                    <UButton block icon="i-lucide-check" size="lg" color="primary" variant="solid" class="w-full">Mark as Live Submission</UButton>
+                    <UButton block icon="i-lucide-check" size="lg" color="primary" variant="solid" class="w-full">Mark as Performed Live</UButton>
                     <template #content="{ close }">
                       <UPageCard>Are you sure you want to mark this as a live submission?
                         <div class="flex justify-center gap-2">
